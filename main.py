@@ -13,7 +13,7 @@ dp = Dispatcher(bot)
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
     markup = types.InlineKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    markup.add(types.KeyboardButton('Открыть веб страницу', web_app=WebAppInfo(url="https://dramatichno.ru/")))
+    markup.add(types.KeyboardButton('Открыть веб страницу', web_app=WebAppInfo(url="https://83.166.247.196")))
     await message.answer("Привет!", reply_markup=markup)
 
 
