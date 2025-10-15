@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Голосование</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    label { display: block; margin: 15px 0 5px; }
+    input, select { width: 100%; padding: 8px; margin-bottom: 15px; }
+    button { width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <h2>Голосование за лучшего сотрудника</h2>
+
+  <label>Ваше ФИО:</label>
+  <input type="text" id="voter_name" placeholder="Иванов Иван Иванович" required>
+
+  <label>Ваш отдел:</label>
+  <select id="department" required></select>
+
+  <label>Кого номинируете?</label>
+  <select id="nominee" required></select>
+
+  <button onclick="submitVote()">Отправить голос</button>
+
+  <script>
+    let employees = [];
+    let departments = [];
+
+    fetch('/api/employees')
+      .then(res => res.json())
+      .then(data => {
+        employees = data;
+        departments = [...new Set(data.map(e => e.department))].sort();
+
+        const deptSel = document.getElementById('department');
+        departments.forEach(d => {
+          const opt = document.createElement('option');
+          opt.value = d;
+          opt.textContent = d;
+          deptSel.appendChild(opt);
+        });
+
+        updateNomineeList();
+        deptSel.addEventListener('change', updateNomineeList);
+      });
+
+    function updateNomineeList() {
+      const dept = document.getElementById('department').value;
+      const nomineeSel = document.getElementById('nominee');
+      nomineeSel.innerHTML = '';
+      employees
+        .filter(e => e.department === dept)
+        .forEach(e => {
+          const opt = document.createElement('option');
+          opt.value = e.name;
+          opt.textContent = e.name;
+          nomineeSel.appendChild(opt);
+        });
+    }
+
+    function submitVote() {
+      const voter = document.getElementById('voter_name').value.trim();
+      const dept = document.getElementById('department').value;
+      const nominee = document.getElementById('nominee').value;
+
+      if (!voter || !dept || !nominee) {
+        alert('Заполните все поля!');
+        return;
+      }
+
+      const data = JSON.stringify({ voter_name: voter, department: dept, nominee: nominee });
+      Telegram.WebApp.sendData(data);
+      Telegram.WebApp.close();
+    }
+  </script>
+</body>
+</html>
