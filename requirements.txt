@@ -1,4 +1,4 @@
-aiogram
+aiogram==3.9.0
 python-dotenv
 flask
-aiohttp
+aiohttp==3.7.4
