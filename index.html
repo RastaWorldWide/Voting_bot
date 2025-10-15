@@ -1,81 +1,139 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Голосование</title>
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    label { display: block; margin: 15px 0 5px; }
-    input, select { width: 100%; padding: 8px; margin-bottom: 15px; }
-    button { width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; font-size: 16px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тестовый Web App</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            color: white;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.2);
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 15px;
+            border-left: 4px solid #ff6b6b;
+        }
+
+        .btn {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            margin: 10px;
+            transition: transform 0.3s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .feature-item {
+            background: rgba(255,255,255,0.15);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
-  <h2>Голосование за лучшего сотрудника</h2>
+    <div class="container">
+        <h1>🎭 Dramatichno</h1>
 
-  <label>Ваше ФИО:</label>
-  <input type="text" id="voter_name" placeholder="Иванов Иван Иванович" required>
+        <div class="card">
+            <h2>Добро пожаловать!</h2>
+            <p>Это тестовый web app для вашего Telegram бота. Здесь вы можете увидеть как работает интеграция.</p>
+        </div>
 
-  <label>Ваш отдел:</label>
-  <select id="department" required></select>
+        <div class="features">
+            <div class="feature-item">
+                <h3>✨ Красиво</h3>
+                <p>Современный дизайн</p>
+            </div>
+            <div class="feature-item">
+                <h3>📱 Адаптивно</h3>
+                <p>Подходит для всех устройств</p>
+            </div>
+            <div class="feature-item">
+                <h3>⚡ Быстро</h3>
+                <p>Оптимизированная загрузка</p>
+            </div>
+            <div class="feature-item">
+                <h3>🔒 Безопасно</h3>
+                <p>Защищённое соединение</p>
+            </div>
+        </div>
 
-  <label>Кого номинируете?</label>
-  <select id="nominee" required></select>
+        <div style="text-align: center;">
+            <button class="btn" onclick="showMessage()">Нажми меня!</button>
+            <button class="btn" onclick="changeColor()">Сменить цвет</button>
+        </div>
 
-  <button onclick="submitVote()">Отправить голос</button>
+        <div id="message" style="text-align: center; margin-top: 20px;"></div>
+    </div>
 
-  <script>
-    let employees = [];
-    let departments = [];
+    <script>
+        function showMessage() {
+            const messages = [
+                "Отлично! Web app работает! 🎉",
+                "Вы великолепны! ✨",
+                "Telegram + Web App = 💖",
+                "Продолжайте в том же духе! 🚀"
+            ];
+            const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+            document.getElementById('message').innerHTML = `<h3>${randomMessage}</h3>`;
+        }
 
-    fetch('/api/employees')
-      .then(res => res.json())
-      .then(data => {
-        employees = data;
-        departments = [...new Set(data.map(e => e.department))].sort();
+        function changeColor() {
+            const colors = [
+                'linear-gradient(135deg, #667eea, #764ba2)',
+                'linear-gradient(135deg, #f093fb, #f5576c)',
+                'linear-gradient(135deg, #4facfe, #00f2fe)',
+                'linear-gradient(135deg, #43e97b, #38f9d7)',
+                'linear-gradient(135deg, #fa709a, #fee140)'
+            ];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            document.body.style.background = randomColor;
+        }
 
-        const deptSel = document.getElementById('department');
-        departments.forEach(d => {
-          const opt = document.createElement('option');
-          opt.value = d;
-          opt.textContent = d;
-          deptSel.appendChild(opt);
-        });
-
-        updateNomineeList();
-        deptSel.addEventListener('change', updateNomineeList);
-      });
-
-    function updateNomineeList() {
-      const dept = document.getElementById('department').value;
-      const nomineeSel = document.getElementById('nominee');
-      nomineeSel.innerHTML = '';
-      employees
-        .filter(e => e.department === dept)
-        .forEach(e => {
-          const opt = document.createElement('option');
-          opt.value = e.name;
-          opt.textContent = e.name;
-          nomineeSel.appendChild(opt);
-        });
-    }
-
-    function submitVote() {
-      const voter = document.getElementById('voter_name').value.trim();
-      const dept = document.getElementById('department').value;
-      const nominee = document.getElementById('nominee').value;
-
-      if (!voter || !dept || !nominee) {
-        alert('Заполните все поля!');
-        return;
-      }
-
-      const data = JSON.stringify({ voter_name: voter, department: dept, nominee: nominee });
-      Telegram.WebApp.sendData(data);
-      Telegram.WebApp.close();
-    }
-  </script>
+        // Отправляем данные в Telegram при загрузке
+        if (window.Telegram && Telegram.WebApp) {
+            Telegram.WebApp.ready();
+            Telegram.WebApp.expand();
+        }
+    </script>
 </body>
 </html>
