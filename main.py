@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import os
 import asyncio
 
+load_dotenv()
 
 # === Конфигурация ===
 BOT_TOKEN = os.getenv('BOT_TOKEN')
