@@ -1,139 +1,46 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Тестовый Web App</title>
-    <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            margin: 0;
-            padding: 20px;
-            min-height: 100vh;
-            color: white;
-        }
-
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background: rgba(255,255,255,0.1);
-            padding: 30px;
-            border-radius: 20px;
-            backdrop-filter: blur(10px);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        }
-
-        h1 {
-            text-align: center;
-            margin-bottom: 30px;
-            font-size: 2.5em;
-        }
-
-        .card {
-            background: rgba(255,255,255,0.2);
-            padding: 20px;
-            margin: 15px 0;
-            border-radius: 15px;
-            border-left: 4px solid #ff6b6b;
-        }
-
-        .btn {
-            background: #ff6b6b;
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            border-radius: 25px;
-            font-size: 1.1em;
-            cursor: pointer;
-            margin: 10px;
-            transition: transform 0.3s;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-        }
-
-        .features {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin: 30px 0;
-        }
-
-        .feature-item {
-            background: rgba(255,255,255,0.15);
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Голосование — Прософт Системы</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-    <div class="container">
-        <h1>🎭 Dramatichno</h1>
+  <div class="background-tree"></div>
 
-        <div class="card">
-            <h2>Добро пожаловать!</h2>
-            <p>Это тестовый web app для вашего Telegram бота. Здесь вы можете увидеть как работает интеграция.</p>
-        </div>
+  <div class="vote-container">
+    <h1>Голосование</h1>
+    <p>Выберите свой отдел и сотрудника, за которого хотите проголосовать.</p>
 
-        <div class="features">
-            <div class="feature-item">
-                <h3>✨ Красиво</h3>
-                <p>Современный дизайн</p>
-            </div>
-            <div class="feature-item">
-                <h3>📱 Адаптивно</h3>
-                <p>Подходит для всех устройств</p>
-            </div>
-            <div class="feature-item">
-                <h3>⚡ Быстро</h3>
-                <p>Оптимизированная загрузка</p>
-            </div>
-            <div class="feature-item">
-                <h3>🔒 Безопасно</h3>
-                <p>Защищённое соединение</p>
-            </div>
-        </div>
+    <form id="voteForm">
+      <label for="fio">Ваше ФИО:</label>
+      <input type="text" id="fio" name="fio" placeholder="Иванов Иван Иванович" required />
 
-        <div style="text-align: center;">
-            <button class="btn" onclick="showMessage()">Нажми меня!</button>
-            <button class="btn" onclick="changeColor()">Сменить цвет</button>
-        </div>
+      <label for="department">Ваш отдел:</label>
+      <select id="department" name="department" required>
+        <option value="" disabled selected>Выберите отдел</option>
+        <option>Отдел автоматизации</option>
+        <option>ИТ отдел</option>
+        <option>Бухгалтерия</option>
+        <option>Отдел продаж</option>
+        <option>Производство</option>
+        <option>Отдел кадров</option>
+      </select>
 
-        <div id="message" style="text-align: center; margin-top: 20px;"></div>
-    </div>
+      <label for="nominee">Кого вы номинируете:</label>
+      <input type="text" id="nominee" name="nominee" placeholder="ФИО сотрудника" required />
 
-    <script>
-        function showMessage() {
-            const messages = [
-                "Отлично! Web app работает! 🎉",
-                "Вы великолепны! ✨",
-                "Telegram + Web App = 💖",
-                "Продолжайте в том же духе! 🚀"
-            ];
-            const randomMessage = messages[Math.floor(Math.random() * messages.length)];
-            document.getElementById('message').innerHTML = `<h3>${randomMessage}</h3>`;
-        }
+      <button type="submit">Отправить голос</button>
+    </form>
+  </div>
 
-        function changeColor() {
-            const colors = [
-                'linear-gradient(135deg, #667eea, #764ba2)',
-                'linear-gradient(135deg, #f093fb, #f5576c)',
-                'linear-gradient(135deg, #4facfe, #00f2fe)',
-                'linear-gradient(135deg, #43e97b, #38f9d7)',
-                'linear-gradient(135deg, #fa709a, #fee140)'
-            ];
-            const randomColor = colors[Math.floor(Math.random() * colors.length)];
-            document.body.style.background = randomColor;
-        }
-
-        // Отправляем данные в Telegram при загрузке
-        if (window.Telegram && Telegram.WebApp) {
-            Telegram.WebApp.ready();
-            Telegram.WebApp.expand();
-        }
-    </script>
+  <script>
+    document.getElementById('voteForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      alert('Спасибо! Ваш голос учтён.');
+      this.reset();
+    });
+  </script>
 </body>
 </html>

@@ -1,0 +1,90 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+
+body {
+  margin: 0;
+  font-family: 'Montserrat', sans-serif;
+  background: radial-gradient(circle at center, #082032, #050c1a);
+  color: #fff;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+/* Фон с “технологическим деревом” */
+.background-tree {
+  position: fixed;
+  inset: 0;
+  background: url('tree.svg') no-repeat center center;
+  background-size: 70%;
+  opacity: 0.2;
+  animation: glow 6s infinite alternate;
+  z-index: 0;
+}
+
+@keyframes glow {
+  from { filter: drop-shadow(0 0 2px #1dc0ff); }
+  to { filter: drop-shadow(0 0 12px #00f6ff); }
+}
+
+/* Основной контейнер */
+.vote-container {
+  position: relative;
+  z-index: 1;
+  max-width: 420px;
+  margin: 10vh auto;
+  background: rgba(15, 30, 50, 0.8);
+  padding: 30px;
+  border-radius: 20px;
+  box-shadow: 0 0 25px rgba(0, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+}
+
+h1 {
+  text-align: center;
+  color: #00f6ff;
+}
+
+label {
+  display: block;
+  margin-top: 15px;
+  font-weight: 600;
+}
+
+input, select {
+  width: 100%;
+  padding: 10px;
+  margin-top: 5px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(0, 30, 50, 0.8);
+  color: white;
+  font-size: 14px;
+  appearance: none;
+}
+
+select option {
+  background: #082032;
+  color: #fff;
+}
+
+input::placeholder {
+  color: #aaa;
+}
+
+button {
+  width: 100%;
+  margin-top: 20px;
+  padding: 12px;
+  font-weight: 600;
+  font-size: 15px;
+  background: linear-gradient(90deg, #00f6ff, #1dc0ff);
+  color: #001020;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 15px #00f6ff;
+}
