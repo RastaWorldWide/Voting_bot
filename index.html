@@ -3,24 +3,60 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Голосование— Прософт Системы</title>
-  <link rel="stylesheet" href="style.css" />
-  <style>
-        #main {
-            height: 100vh; /* 100% высоты экрана */
-            width: 100vw;  /* 100% ширины экрана */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: linear-gradient(135deg, #222, #444);
-            color: white;
-            font-size: 2rem;
-        }
-    </style>
-</head>
-<body>
-  <div class="background-tree"></div>
+  <title>Голосование — Прософт Системы</title>
 
+  <link rel="stylesheet" href="style.css" />
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      background: linear-gradient(135deg, #222, #444);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .vote-container {
+      background: rgba(0, 0, 0, 0.4);
+      padding: 20px 30px;
+      border-radius: 16px;
+      width: 90%;
+      max-width: 420px;
+      color: white;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    input, select, button {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+
+    button {
+      background-color: #0a84ff;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #006ee6;
+    }
+  </style>
+</head>
+
+<body>
   <div class="vote-container">
     <h1>Голосование</h1>
     <p>Выберите свой отдел и сотрудника, за которого хотите проголосовать.</p>
@@ -47,11 +83,28 @@
     </form>
   </div>
 
+  <!-- Подключаем Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
   <script>
-    document.getElementById('voteForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-      alert('Спасибо! Ваш голос учтён.');
-      this.reset();
+    // Telegram WebApp инициализация
+    document.addEventListener("DOMContentLoaded", () => {
+      const tg = window.Telegram?.WebApp;
+
+      if (tg) {
+        tg.expand(); // ✅ Разворачивает WebView на весь экран
+        tg.ready();  // ✅ Сообщает Telegram, что страница загружена
+        tg.setHeaderColor("secondary_bg_color");
+      } else {
+        console.warn("Открыто не через Telegram WebView.");
+      }
+
+      // Обработка формы
+      document.getElementById('voteForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        alert('Спасибо! Ваш голос учтён.');
+        this.reset();
+      });
     });
   </script>
 </body>
