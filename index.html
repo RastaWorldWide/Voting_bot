@@ -9,9 +9,9 @@
   <title>Голосование — Прософт Системы</title>
 
   <style>
-    /* === Общие настройки === */
     * {
       box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
     }
 
     html, body {
@@ -29,17 +29,35 @@
       touch-action: manipulation;
     }
 
-    /* === Фон с узором и светом === */
+    /* === Слой с фоном === */
     .background {
       position: absolute;
       inset: 0;
-      background-image:
-        url("https://www.prosoft-people.ru/static/bg-pattern.svg"), /* сюда можно вставить твой фирменный SVG-паттерн */
-        linear-gradient(135deg, rgba(0, 68, 122, 0.4), rgba(0, 25, 45, 0.8));
-      background-size: cover;
-      background-blend-mode: overlay;
+      overflow: hidden;
       z-index: 0;
-      filter: brightness(0.8);
+    }
+
+    /* === Анимированные линии === */
+    .lines {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0.25;
+      z-index: 0;
+    }
+
+    @keyframes flow {
+      0% { stroke-dashoffset: 1000; }
+      100% { stroke-dashoffset: 0; }
+    }
+
+    .lines path {
+      stroke: #00c6ff;
+      stroke-width: 1.2;
+      fill: none;
+      stroke-dasharray: 10 15;
+      animation: flow 15s linear infinite;
     }
 
     /* === Контейнер формы === */
@@ -85,10 +103,12 @@
       margin-bottom: 14px;
       border-radius: 8px;
       border: 1px solid rgba(0, 140, 255, 0.3);
-      background: rgba(255, 255, 255, 0.08);
+      background-color: rgba(15, 35, 55, 0.9); /* фикс белого квадрата */
       color: #fff;
       font-size: 1rem;
       outline: none;
+      -webkit-appearance: none;
+      appearance: none;
     }
 
     input::placeholder {
@@ -96,7 +116,6 @@
     }
 
     select {
-      appearance: none;
       background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' fill='%23ffffff' xmlns='http://www.w3.org/2000/svg'%3E<path d='M4 6l4 4 4-4H4z'/></svg>");
       background-repeat: no-repeat;
       background-position: right 10px center;
@@ -121,7 +140,6 @@
       transform: translateY(-2px);
     }
 
-    /* === Мобильная адаптация === */
     @media (max-width: 480px) {
       .vote-container {
         padding: 18px 20px;
@@ -140,7 +158,14 @@
 </head>
 
 <body>
-  <div class="background"></div>
+  <div class="background">
+    <!-- SVG-анимация светящихся линий -->
+    <svg class="lines" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice">
+      <path d="M0 100 Q200 150 400 100 T800 100" />
+      <path d="M0 300 Q250 250 500 300 T800 300" />
+      <path d="M0 500 Q200 550 400 500 T800 500" />
+    </svg>
+  </div>
 
   <div class="vote-container">
     <h1>Голосование</h1>
@@ -178,10 +203,20 @@
         tg.setHeaderColor("secondary_bg_color");
       }
 
-      document.getElementById("voteForm").addEventListener("submit", (e) => {
+      const form = document.getElementById("voteForm");
+
+      // Убираем клавиатуру при тапе на фон
+      document.body.addEventListener("click", (e) => {
+        if (!form.contains(e.target)) {
+          document.activeElement.blur();
+        }
+      });
+
+      form.addEventListener("submit", (e) => {
         e.preventDefault();
         alert("Спасибо! Ваш голос учтён.");
         e.target.reset();
+        document.activeElement.blur();
       });
     });
   </script>
