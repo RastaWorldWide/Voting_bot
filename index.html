@@ -197,30 +197,35 @@
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const tg = window.Telegram?.WebApp;
-      if (tg) {
-        tg.expand();
-        tg.ready();
-        tg.setHeaderColor("secondary_bg_color");
-      }
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
 
-      const form = document.getElementById("voteForm");
+  const data = {
+    fio: document.getElementById("fio").value,
+    department: document.getElementById("department").value,
+    nominee: document.getElementById("nominee").value
+  };
 
-      // Убираем клавиатуру при тапе на фон
-      document.body.addEventListener("click", (e) => {
-        if (!form.contains(e.target)) {
-          document.activeElement.blur();
-        }
-      });
-
-      form.addEventListener("submit", (e) => {
-        e.preventDefault();
-        alert("Спасибо! Ваш голос учтён.");
-        e.target.reset();
-        document.activeElement.blur();
-      });
+  try {
+    const response = await fetch("http://localhost:8000/api/votes", {
+      method: "POST",http://localhost/
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
     });
+
+    if (response.ok) {
+      alert("Спасибо! Ваш голос учтён.");
+      form.reset();
+      document.activeElement.blur();
+    } else {
+      alert("Ошибка при отправке голоса.");
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Не удалось отправить голос. Проверьте соединение.");
+  }
+});
+
   </script>
 </body>
 <img src="https://marketelectro.ru/sites/default/files/userfiles/11309/ps_logo_blue_2c_rus.png"
