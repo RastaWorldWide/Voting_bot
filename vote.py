@@ -7,7 +7,17 @@ import os
 
 VOTES_FILE = "votes.json"
 
-app = FastAPI(title="Prosoft Voting API")
+app = FastAPI(title="Prosoft Voting APIы")
+
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # временно
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # === Модель данных для голоса ===
 class Vote(BaseModel):
