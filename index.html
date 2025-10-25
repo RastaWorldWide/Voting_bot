@@ -214,7 +214,7 @@
     };
 
     try {
-      const response = await fetch("https://www.prosoft-people.ru:8000/api/votes", {
+      const response = await fetch("/api/votes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data)
