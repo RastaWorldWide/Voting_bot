@@ -195,37 +195,45 @@
     </form>
   </div>
 
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script>
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  const data = {
-    fio: document.getElementById("fio").value,
-    department: document.getElementById("department").value,
-    nominee: document.getElementById("nominee").value
-  };
-
-  try {
-    const response = await fetch("https://www.prosoft-people.ru:8000/api/votes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data)
-    });
-
-    if (response.ok) {
-      alert("Спасибо! Ваш голос учтён.");
-      form.reset();
-      document.activeElement.blur();
-    } else {
-      alert("Ошибка при отправке голоса.");
-    }
-  } catch (err) {
-    console.error(err);
-    alert("Не удалось отправить голос. Проверьте соединение.");
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+  // === Разворачиваем WebApp Telegram на всю доступную высоту ===
+  if (window.Telegram && window.Telegram.WebApp) {
+    Telegram.WebApp.expand();
   }
-});
-  </script>
+
+  const form = document.getElementById("voteForm");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const data = {
+      fio: document.getElementById("fio").value,
+      department: document.getElementById("department").value,
+      nominee: document.getElementById("nominee").value
+    };
+
+    try {
+      const response = await fetch("https://www.prosoft-people.ru:8000/api/votes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+
+      if (response.ok) {
+        alert("Спасибо! Ваш голос учтён.");
+        form.reset();
+        document.activeElement.blur();
+      } else {
+        alert("Ошибка при отправке голоса.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Не удалось отправить голос. Проверьте соединение.");
+    }
+  });
+</script>
+
 </body>
 <img src="https://marketelectro.ru/sites/default/files/userfiles/11309/ps_logo_blue_2c_rus.png"
      alt="Prosoft Systems Logo"
