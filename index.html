@@ -209,12 +209,18 @@
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const data = {
+    const voteData = {
       fio: document.getElementById("fio").value,
       department: document.getElementById("department").value,
       nominee: document.getElementById("nominee").value,
-      chat_id: Telegram.WebApp.initDataUnsafe.user.id  // получаем ID пользователя
+      chat_id: Telegram.WebApp.initDataUnsafe.user.id
     };
+
+    fetch("https://www.prosoft-people.ru/api/votes", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(voteData)
+    });
 
     try {
 
