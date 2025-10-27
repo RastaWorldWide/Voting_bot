@@ -212,7 +212,8 @@
     const data = {
       fio: document.getElementById("fio").value,
       department: document.getElementById("department").value,
-      nominee: document.getElementById("nominee").value
+      nominee: document.getElementById("nominee").value,
+      chat_id: Telegram.WebApp.initDataUnsafe.user.id  // получаем ID пользователя
     };
 
     try {

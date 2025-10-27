@@ -1,67 +1,80 @@
 import os
 import json
 from datetime import datetime
-from typing import List
-from dotenv import load_dotenv
-
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-
+from typing import List
+from fastapi.middleware.cors import CORSMiddleware
 from aiogram import Bot, Dispatcher, types
 from aiogram.types.web_app_info import WebAppInfo
+from dotenv import load_dotenv
 import asyncio
 
-# ===== Настройки =====
 load_dotenv()
+
+# === Настройки бота ===
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 bot = Bot(BOT_TOKEN)
 dp = Dispatcher(bot)
-VOTES_FILE = "votes.json"
 
-# ===== FastAPI =====
+# === FastAPI ===
 app = FastAPI(title="Prosoft Voting API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # временно
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+VOTES_FILE = "votes.json"
+
 class Vote(BaseModel):
     fio: str
     department: str
     nominee: str
-    chat_id: int   # <- сюда передаём chat_id пользователя
+    chat_id: int  # добавляем chat_id
 
+# === Эндпоинт для голосования ===
 @app.post("/api/votes")
 async def submit_vote(vote: Vote):
     try:
         vote_data = vote.dict()
         vote_data["date"] = datetime.now().isoformat()
 
+        # Читаем старые голоса
         votes: List[dict] = []
         if os.path.exists(VOTES_FILE):
             with open(VOTES_FILE, "r", encoding="utf-8") as f:
                 votes = json.load(f)
+
         votes.append(vote_data)
+
+        # Сохраняем
         with open(VOTES_FILE, "w", encoding="utf-8") as f:
             json.dump(votes, f, ensure_ascii=False, indent=2)
 
-        # ===== Отправляем сообщение в бота =====
-        try:
-            await bot.send_message(vote.chat_id, "✅ Спасибо! Ваш голос учтён. Подводить итоги будем 30 ноября.")
-        except Exception as e:
-            print(f"Ошибка при отправке Telegram-сообщения: {e}")
+        # Отправка сообщения в Telegram (асинхронно)
+        asyncio.create_task(bot.send_message(
+            vote.chat_id,
+            "Спасибо, ваш голос учтён. Подводить итоги будем 30 ноября"
+        ))
 
         return {"status": "ok", "message": "Голос сохранён"}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# ===== Aiogram команды =====
+# === (опционально) получить все голоса ===
+@app.get("/api/votes")
+async def get_votes():
+    if os.path.exists(VOTES_FILE):
+        with open(VOTES_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return []
+
+# === Приветствие в боте и кнопка веб-страницы ===
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
     markup = types.InlineKeyboardMarkup()
@@ -71,7 +84,13 @@ async def start(message: types.Message):
     ))
     await message.answer("Привет!", reply_markup=markup)
 
-# ===== Запуск бота вместе с FastAPI =====
-@app.on_event("startup")
-async def on_startup():
-    asyncio.create_task(dp.start_polling())
+# === Запуск бота в фоне вместе с FastAPI ===
+async def start_bot():
+    await dp.start_polling()
+
+# === Main для uvicorn ===
+if __name__ == "__main__":
+    import uvicorn
+    loop = asyncio.get_event_loop()
+    loop.create_task(start_bot())
+    uvicorn.run(app, host="0.0.0.0", port=8000)
