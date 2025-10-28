@@ -201,6 +201,8 @@
   tg.expand();
 
   const form = document.getElementById("voteForm");
+  const thankYouScreen = document.getElementById("thankYouScreen");
+  const container = document.querySelector(".vote-container");
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -209,19 +211,23 @@
       fio: document.getElementById("fio").value,
       department: document.getElementById("department").value,
       nominee: document.getElementById("nominee").value,
-      chat_id: tg.initDataUnsafe?.user?.id || null
+      chat_id: tg.initDataUnsafe?.user?.id || null,
     };
 
     try {
       const response = await fetch("https://www.prosoft-people.ru/api/votes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(voteData)
+        body: JSON.stringify(voteData),
       });
 
       if (response.ok) {
-        tg.close(); // можно закрыть WebApp после голосования
-        alert("✅ Спасибо! Ваш голос учтён.");
+        // Прячем форму и показываем экран "Спасибо"
+        form.style.display = "none";
+        thankYouScreen.style.display = "flex";
+
+        // Можно закрыть через пару секунд, если хочешь
+        // setTimeout(() => tg.close(), 3000);
       } else {
         alert("❌ Ошибка при отправке голоса.");
       }
@@ -231,6 +237,21 @@
     }
   });
 </script>
+
+<div
+  id="thankYouScreen"
+  style="
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+  "
+>
+  <h1 style="color: #00c6ff; font-size: 1.8rem;">Спасибо!</h1>
+  <p style="font-size: 1.1rem; color: #d0e6ff;">Ваш голос учтён ✅</p>
+</div>
 
 </body>
 <img src="https://marketelectro.ru/sites/default/files/userfiles/11309/ps_logo_blue_2c_rus.png"
