@@ -73,6 +73,13 @@ async def start_bot():
 
 if __name__ == "__main__":
     import uvicorn
+    import logging
+
+    logging.basicConfig(level=logging.INFO)
+
     loop = asyncio.get_event_loop()
+    logging.info("🚀 Запуск Telegram-бота...")
     loop.create_task(start_bot())
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    logging.info("🌐 Запуск FastAPI через uvicorn...")
+    uvicorn.run(app, host="127.0.0.1", port=8000)
+
