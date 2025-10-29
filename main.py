@@ -72,7 +72,7 @@ async def start(message: types.Message):
     inline_markup = InlineKeyboardMarkup()
     inline_markup.add(
         InlineKeyboardButton(
-            text="Проголосовать",
+            text="🗳 Проголосовать",
             web_app=WebAppInfo(url="https://www.prosoft-people.ru")
         )
     )
