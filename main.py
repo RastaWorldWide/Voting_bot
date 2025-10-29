@@ -50,8 +50,7 @@ async def submit_vote(vote: Vote):
 
         asyncio.create_task(bot.send_message(
             vote.chat_id,
-            f"Спасибо, {vote.fio}! Ваш голос за {vote.nominee} учтён 🎉"
-        ))
+            f"Спасибо, {vote.fio}! Ваш голос за {vote.nominee} учтён 🎉"))
 
         return {"status": "ok", "message": "Голос сохранён"}
 
@@ -61,13 +60,16 @@ async def submit_vote(vote: Vote):
 
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
+    user_first_name = message.from_user.first_name or "друг"
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add(types.KeyboardButton(
         "Открыть веб страницу",
         web_app=WebAppInfo(url="https://www.prosoft-people.ru")
     ))
-    await message.answer("👋 Привет! Нажмите кнопку ниже, чтобы проголосовать:", reply_markup=markup)
-
+    await message.answer(
+        f"👋 Привет, {user_first_name}! Нажмите кнопку ниже, чтобы проголосовать:",
+        reply_markup=markup
+    )
 async def start_bot():
     await dp.start_polling()
 
