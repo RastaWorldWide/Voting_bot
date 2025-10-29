@@ -50,7 +50,7 @@ async def submit_vote(vote: Vote):
 
         asyncio.create_task(bot.send_message(
             vote.chat_id,
-            f"✅ Спасибо, {vote.fio}! Ваш голос за {vote.nominee} учтён 🎉"
+            f"Спасибо, {vote.fio}! Ваш голос за {vote.nominee} учтён 🎉"
         ))
 
         return {"status": "ok", "message": "Голос сохранён"}
