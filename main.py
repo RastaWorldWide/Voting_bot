@@ -72,12 +72,15 @@ async def start(message: types.Message):
     inline_markup = InlineKeyboardMarkup()
     inline_markup.add(
         InlineKeyboardButton(
-            text="🗳 Открыть веб-страницу",
+            text="Проголосовать",
             web_app=WebAppInfo(url="https://www.prosoft-people.ru")
         )
     )
     await message.answer(
-        f"👋 Привет, {user_first_name}! Нажмите кнопку ниже, чтобы проголосовать:",
+        f"Привет, {user_first_name}!\n"
+        f"30 лет растем вместе!\n"
+        f"Приглашаем тебя принять участие в номинации 'Люди Роста'\n"
+        f"Голос каждого важен!",
         reply_markup=inline_markup
     )
 
