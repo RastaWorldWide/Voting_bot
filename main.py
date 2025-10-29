@@ -58,6 +58,14 @@ async def submit_vote(vote: Vote):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/votes")
+async def get_votes():
+    if os.path.exists(VOTES_FILE):
+        with open(VOTES_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return []
+
+
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
     user_first_name = message.from_user.first_name or "друг"
@@ -74,14 +82,28 @@ async def start_bot():
     await dp.start_polling()
 
 if __name__ == "__main__":
-    import uvicorn
+    import asyncio
     import logging
+    import uvicorn
 
     logging.basicConfig(level=logging.INFO)
 
-    loop = asyncio.get_event_loop()
-    logging.info("🚀 Запуск Telegram-бота...")
-    loop.create_task(start_bot())
-    logging.info("🌐 Запуск FastAPI через uvicorn...")
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    async def main():
+        # Запускаем polling бота
+        logging.info("🚀 Запуск Telegram-бота...")
+        bot_task = asyncio.create_task(dp.start_polling())
 
+        # Запускаем FastAPI в том же loop'е
+        logging.info("🌐 Запуск FastAPI...")
+        config = uvicorn.Config(app, host="127.0.0.1", port=8000, loop="asyncio")
+        server = uvicorn.Server(config)
+        api_task = asyncio.create_task(server.serve())
+
+        try:
+            await asyncio.gather(bot_task, api_task)
+        except KeyboardInterrupt:
+            logging.info("🛑 Остановка по сигналу...")
+            bot_task.cancel()
+            api_task.cancel()
+
+    asyncio.run(main())
