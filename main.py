@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from aiogram import Bot, Dispatcher, types
-from aiogram.types import WebAppInfo
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -69,15 +69,18 @@ async def get_votes():
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
     user_first_name = message.from_user.first_name or "друг"
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add(types.KeyboardButton(
-        "Открыть веб страницу",
-        web_app=WebAppInfo(url="https://www.prosoft-people.ru")
-    ))
+    inline_markup = InlineKeyboardMarkup()
+    inline_markup.add(
+        InlineKeyboardButton(
+            text="🗳 Открыть веб-страницу",
+            web_app=WebAppInfo(url="https://www.prosoft-people.ru")
+        )
+    )
     await message.answer(
         f"👋 Привет, {user_first_name}! Нажмите кнопку ниже, чтобы проголосовать:",
-        reply_markup=markup
+        reply_markup=inline_markup
     )
+
 async def start_bot():
     await dp.start_polling()
 
