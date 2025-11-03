@@ -101,43 +101,46 @@ loadDepartments();
 
 let validationTimeout;
 
-// Проверка ФИО и отдела на первом шаге
+// Общая функция проверки ФИО и отдела
+async function checkFioDept(fio, dept) {
+    try {
+        const res = await fetch("https://www.prosoft-people.ru/api/validate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fio, department: dept })
+        });
+        const data = await res.json();
+        return data.valid;
+    } catch (err) {
+        console.error(err);
+        return false;
+    }
+}
+
+// Проверка на первом шаге с дебаунсом
 async function validateUser() {
     const fio = fioInput.value.trim();
     const department = departmentSelect.value;
 
     nextStep1.disabled = true;
     validationMessage.style.display = "none";
-
     if (!fio || !department) return;
 
     clearTimeout(validationTimeout);
     validationTimeout = setTimeout(async () => {
-        try {
-            const res = await fetch("https://www.prosoft-people.ru/api/validate", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ fio, department })
-            });
-            const data = await res.json();
-            if (data.valid) {
-                nextStep1.disabled = false;
-                validationMessage.style.display = "none";
-            } else {
-                nextStep1.disabled = true;
-                validationMessage.textContent = "❌ Некорректное ФИО или отдел";
-                validationMessage.style.display = "block";
-            }
-        } catch (err) {
-            console.error(err);
+        const valid = await checkFioDept(fio, department);
+        if (valid) {
+            nextStep1.disabled = false;
+            validationMessage.style.display = "none";
+        } else {
             nextStep1.disabled = true;
-            validationMessage.textContent = "Ошибка проверки данных";
+            validationMessage.textContent = "❌ Некорректное ФИО или отдел";
             validationMessage.style.display = "block";
         }
     }, 500);
 }
 
-// слушатели
+// Слушатели для первого шага
 fioInput.addEventListener("input", validateUser);
 departmentSelect.addEventListener("change", validateUser);
 
@@ -147,36 +150,40 @@ nextStep1.addEventListener("click", () => {
   step2.classList.add("active");
 });
 
-// Отправка голоса
+// Отправка голоса с повторной проверкой ФИО и отдела
 document.getElementById("submitVote").addEventListener("click", async () => {
-  const nominee = nomineeInput.value.trim();
-  if (!nominee) { alert("Введите ФИО сотрудника."); return; }
+    const fio = fioInput.value.trim();
+    const department = departmentSelect.value;
+    const nominee = nomineeInput.value.trim();
 
-  const voteData = {
-    fio: fioInput.value.trim(),
-    department: departmentSelect.value,
-    nominee,
-    chat_id: tg.initDataUnsafe?.user?.id || null
-  };
+    if (!nominee) { alert("Введите ФИО сотрудника."); return; }
 
-  try {
-    const response = await fetch("https://www.prosoft-people.ru/api/votes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(voteData)
-    });
-
-    if (response.ok) {
-      step2.classList.remove("active");
-      step3.classList.add("active");
-    } else {
-      const error = await response.json();
-      alert("Ошибка: " + (error.detail || "Не удалось отправить голос."));
+    const valid = await checkFioDept(fio, department);
+    if (!valid) {
+        alert("❌ Некорректное ФИО или отдел. Проверьте и попробуйте снова.");
+        return;
     }
-  } catch (err) {
-    console.error(err);
-    alert("Не удалось отправить голос.");
-  }
+
+    const voteData = { fio, department, nominee, chat_id: tg.initDataUnsafe?.user?.id || null };
+
+    try {
+        const response = await fetch("https://www.prosoft-people.ru/api/votes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(voteData)
+        });
+
+        if (response.ok) {
+            step2.classList.remove("active");
+            step3.classList.add("active");
+        } else {
+            const error = await response.json();
+            alert("Ошибка: " + (error.detail || "Не удалось отправить голос."));
+        }
+    } catch (err) {
+        console.error(err);
+        alert("Не удалось отправить голос.");
+    }
 });
 </script>
 
