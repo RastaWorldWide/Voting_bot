@@ -38,34 +38,33 @@ button:hover { box-shadow:0 0 10px rgba(0,200,255,0.5); transform:translateY(-2p
 
 <div class="vote-container">
   <!-- Шаг 1 -->
-  <div id="step1" class="screen active">
-    <h1>Ваши данные</h1>
-    <label for="fio">Ваше ФИО:</label>
-    <input type="text" id="fio" placeholder="Иванов Иван Иванович" required />
+<div id="step1" class="screen active">
+  <h1>Ваши данные</h1>
+  <label for="fio">Ваше ФИО:</label>
+  <input type="text" id="fio" placeholder="Иванов Иван Иванович" required />
 
-    <label for="department">Ваш отдел:</label>
-    <select id="department" required>
-      <option value="" disabled selected>Загрузка отделов...</option>
-    </select>
+  <label for="department">Ваш отдел:</label>
+  <select id="department" required>
+    <option value="" disabled selected>Загрузка отделов...</option>
+  </select>
 
-    <label for="nominee">Кого номинируете:</label>
-    <input type="text" id="nominee" placeholder="ФИО сотрудника" required />
+  <label for="nominee">Кого номинируете:</label>
+  <input type="text" id="nominee" placeholder="ФИО сотрудника" required />
 
-    <button id="nextStep1">Далее</button>
-  </div>
+  <button id="nextStep1">Далее</button>
+</div>
 
-  <!-- Шаг 2 -->
-  <div id="step2" class="screen">
-    <h1>Подтвердите голос</h1>
-    <p>Вы голосуете за: <span id="nomineeConfirm"></span></p>
-    <button id="submitVote">Отправить голос</button>
-  </div>
+<!-- Шаг 2 -->
+<div id="step2" class="screen">
+  <h1>Подтвердите голос</h1>
+  <p>Вы голосуете за: <span id="nomineeConfirm"></span></p>
+  <button id="submitVote">Отправить голос</button>
+</div>
 
-  <!-- Шаг 3 -->
-  <div id="step3" class="screen">
-    <h1>Спасибо!</h1>
-    <p>Ваш голос учтён ✅</p>
-  </div>
+<!-- Шаг 3 -->
+<div id="step3" class="screen">
+  <h1>Спасибо!</h1>
+  <p>Ваш голос учтён ✅</p>
 </div>
 
 <script>
@@ -99,16 +98,35 @@ async function loadDepartments() {
 }
 loadDepartments();
 
-// Переход на шаг 2 с проверкой
-document.getElementById("nextStep1").addEventListener("click", () => {
+// Проверка ФИО и отдела перед шагом 2
+document.getElementById("nextStep1").addEventListener("click", async () => {
   if (!fioInput.value || !departmentSelect.value || !nomineeInput.value) {
     alert("Пожалуйста, заполните все поля.");
     return;
   }
-  // Можно добавить дополнительную проверку: например, поиск ФИО в базе через API
-  nomineeConfirm.textContent = nomineeInput.value;
-  step1.classList.remove("active");
-  step2.classList.add("active");
+
+  try {
+    const res = await fetch("https://www.prosoft-people.ru/api/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fio: fioInput.value,
+        department: departmentSelect.value
+      })
+    });
+
+    const data = await res.json();
+    if (data.valid) {
+      nomineeConfirm.textContent = nomineeInput.value;
+      step1.classList.remove("active");
+      step2.classList.add("active");
+    } else {
+      alert("❌ Некорректное ФИО или отдел. Пожалуйста, проверьте ввод.");
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Не удалось проверить данные.");
+  }
 });
 
 // Отправка голоса
@@ -140,3 +158,4 @@ document.getElementById("submitVote").addEventListener("click", async () => {
   }
 });
 </script>
+</div>
