@@ -53,9 +53,11 @@ button:hover { box-shadow:0 0 10px rgba(0,200,255,0.5); transform:translateY(-2p
   <!-- Шаг 2 -->
   <div id="step2" class="screen">
     <h1>Кого номинируете?</h1>
-    <label for="nominee">ФИО сотрудника:</label>
-    <input type="text" id="nominee" placeholder="Иванов Иван Иванович" required />
-    <button id="submitVote">Отправить голос</button>
+    <label for="nominee">Выберите сотрудника вашего отдела:</label>
+    <select id="nominee" disabled>
+      <option value="" disabled selected>Загрузка сотрудников...</option>
+    </select>
+    <button id="submitVote" disabled>Отправить голос</button>
   </div>
 
   <!-- Шаг 3 -->
@@ -78,7 +80,9 @@ const fioInput = document.getElementById("fio");
 const departmentSelect = document.getElementById("department");
 const nextStep1 = document.getElementById("nextStep1");
 const validationMessage = document.getElementById("validationMessage");
-const nomineeInput = document.getElementById("nominee");
+
+const nomineeSelect = document.getElementById("nominee");
+const submitVoteBtn = document.getElementById("submitVote");
 
 // Загрузка отделов
 async function loadDepartments() {
@@ -101,95 +105,123 @@ loadDepartments();
 
 let validationTimeout;
 
-// Общая функция проверки ФИО и отдела
+// Проверка ФИО и отдела
 async function checkFioDept(fio, dept) {
-    try {
-        const res = await fetch("https://www.prosoft-people.ru/api/validate", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ fio, department: dept })
-        });
-        const data = await res.json();
-        return data.valid;
-    } catch (err) {
-        console.error(err);
-        return false;
-    }
+  try {
+    const res = await fetch("https://www.prosoft-people.ru/api/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fio, department: dept })
+    });
+    const data = await res.json();
+    return data.valid;
+  } catch (err) {
+    console.error(err);
+    return false;
+  }
 }
 
-// Проверка на первом шаге с дебаунсом
+// Дебаунс проверка первого шага
 async function validateUser() {
-    const fio = fioInput.value.trim();
-    const department = departmentSelect.value;
+  const fio = fioInput.value.trim();
+  const department = departmentSelect.value;
 
-    nextStep1.disabled = true;
-    validationMessage.style.display = "none";
-    if (!fio || !department) return;
+  nextStep1.disabled = true;
+  validationMessage.style.display = "none";
+  if (!fio || !department) return;
 
-    clearTimeout(validationTimeout);
-    validationTimeout = setTimeout(async () => {
-        const valid = await checkFioDept(fio, department);
-        if (valid) {
-            nextStep1.disabled = false;
-            validationMessage.style.display = "none";
-        } else {
-            nextStep1.disabled = true;
-            validationMessage.textContent = "❌ Некорректное ФИО или отдел";
-            validationMessage.style.display = "block";
-        }
-    }, 500);
+  clearTimeout(validationTimeout);
+  validationTimeout = setTimeout(async () => {
+    const valid = await checkFioDept(fio, department);
+    if (valid) {
+      nextStep1.disabled = false;
+      validationMessage.style.display = "none";
+    } else {
+      nextStep1.disabled = true;
+      validationMessage.textContent = "❌ Некорректное ФИО или отдел";
+      validationMessage.style.display = "block";
+    }
+  }, 500);
 }
 
-// Слушатели для первого шага
 fioInput.addEventListener("input", validateUser);
 departmentSelect.addEventListener("change", validateUser);
 
-// Переход на шаг 2
-nextStep1.addEventListener("click", () => {
+// Переход на шаг 2 и загрузка сотрудников отдела
+nextStep1.addEventListener("click", async () => {
   step1.classList.remove("active");
   step2.classList.add("active");
+
+  const fio = fioInput.value.trim();
+  const department = departmentSelect.value;
+
+  nomineeSelect.disabled = true;
+  nomineeSelect.innerHTML = '<option value="" disabled selected>Загрузка сотрудников...</option>';
+  submitVoteBtn.disabled = true;
+
+  try {
+    const res = await fetch(`https://www.prosoft-people.ru/api/employees?department=${encodeURIComponent(department)}`);
+    const data = await res.json();
+    nomineeSelect.innerHTML = '<option value="" disabled selected>Выберите сотрудника</option>';
+    data.employees.forEach(emp => {
+      if (emp.fio !== fio) { // нельзя голосовать за себя
+        const option = document.createElement("option");
+        option.value = emp.fio;
+        option.textContent = emp.fio;
+        nomineeSelect.appendChild(option);
+      }
+    });
+    nomineeSelect.disabled = false;
+  } catch (err) {
+    console.error(err);
+    nomineeSelect.innerHTML = '<option value="" disabled selected>Ошибка загрузки сотрудников</option>';
+  }
 });
 
-// Отправка голоса с повторной проверкой ФИО и отдела
-document.getElementById("submitVote").addEventListener("click", async () => {
-    const fio = fioInput.value.trim();
-    const department = departmentSelect.value;
-    const nominee = nomineeInput.value.trim();
+// Активируем кнопку отправки после выбора сотрудника
+nomineeSelect.addEventListener("change", () => {
+  submitVoteBtn.disabled = !nomineeSelect.value;
+});
 
-    if (!nominee) { alert("Введите ФИО сотрудника."); return; }
+// Отправка голоса
+submitVoteBtn.addEventListener("click", async () => {
+  const fio = fioInput.value.trim();
+  const department = departmentSelect.value;
+  const nominee = nomineeSelect.value;
 
-    const valid = await checkFioDept(fio, department);
-    if (!valid) {
-        alert("❌ Некорректное ФИО или отдел. Проверьте и попробуйте снова.");
-        return;
+  if (!nominee) return;
+
+  const valid = await checkFioDept(fio, department);
+  if (!valid) {
+    alert("❌ Некорректное ФИО или отдел. Проверьте и попробуйте снова.");
+    return;
+  }
+
+  const voteData = { fio, department, nominee, chat_id: tg.initDataUnsafe?.user?.id || null };
+
+  try {
+    const response = await fetch("https://www.prosoft-people.ru/api/votes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(voteData)
+    });
+
+    if (response.ok) {
+      step2.classList.remove("active");
+      step3.classList.add("active");
+    } else {
+      const error = await response.json();
+      alert("Ошибка: " + (error.detail || "Не удалось отправить голос."));
     }
-
-    const voteData = { fio, department, nominee, chat_id: tg.initDataUnsafe?.user?.id || null };
-
-    try {
-        const response = await fetch("https://www.prosoft-people.ru/api/votes", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(voteData)
-        });
-
-        if (response.ok) {
-            step2.classList.remove("active");
-            step3.classList.add("active");
-        } else {
-            const error = await response.json();
-            alert("Ошибка: " + (error.detail || "Не удалось отправить голос."));
-        }
-    } catch (err) {
-        console.error(err);
-        alert("Не удалось отправить голос.");
-    }
+  } catch (err) {
+    console.error(err);
+    alert("Не удалось отправить голос.");
+  }
 });
 </script>
 
 <img src="https://marketelectro.ru/sites/default/files/userfiles/11309/ps_logo_blue_2c_rus.png"
      alt="Prosoft Systems Logo"
      style="position:absolute; top:10px; left:10px; width:120px; height:auto; z-index:1;">
-
 </body>
 </html>
