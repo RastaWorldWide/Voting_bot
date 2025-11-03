@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from dotenv import load_dotenv
+import pandas as pd
 
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -33,9 +34,41 @@ class Vote(BaseModel):
     nominee: str
     chat_id: int
 
+
+def load_employees_from_excel():
+    df = pd.read_excel("/root/telegram_webapp/prosoft_staff.xls")
+    # Ожидаем, что в файле есть столбцы "ФИО" и "Отдел"
+    employees = {}
+    for _, row in df.iterrows():
+        fio = str(row["ФИО"]).strip()
+        dept = str(row["Подразделение"]).strip()
+        if fio:
+            employees[fio] = dept
+    return employees
+
+EMPLOYEES = load_employees_from_excel()
+print(f"✅ Загружено {len(EMPLOYEES)} сотрудников для проверки ФИО")
+
+
 @app.post("/api/votes")
 async def submit_vote(vote: Vote):
     try:
+        fio = vote.fio.strip()
+        dept = vote.department.strip()
+
+        # Проверка: есть ли ФИО в Excel
+        if fio not in EMPLOYEES:
+            raise HTTPException(status_code=400, detail=f"ФИО '{fio}' не найдено в списке сотрудников!")
+
+        # Проверка: совпадает ли отдел
+        correct_dept = EMPLOYEES[fio]
+        if correct_dept.lower() != dept.lower():
+            raise HTTPException(
+                status_code=400,
+                detail=f"Отдел не совпадает с данными в системе ({correct_dept})."
+            )
+
+        # Сохранение голоса
         vote_data = vote.dict()
         vote_data["date"] = datetime.now().isoformat()
 
@@ -48,14 +81,19 @@ async def submit_vote(vote: Vote):
         with open(VOTES_FILE, "w", encoding="utf-8") as f:
             json.dump(votes, f, ensure_ascii=False, indent=2)
 
+        # Сообщение в Telegram
         asyncio.create_task(bot.send_message(
             vote.chat_id,
-            f"Спасибо, {vote.fio}! Ваш голос за {vote.nominee} учтён 🎉"))
+            f"Спасибо, {vote.fio}! Ваш голос за {vote.nominee} учтён 🎉"
+        ))
 
         return {"status": "ok", "message": "Голос сохранён"}
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @app.get("/api/votes")
