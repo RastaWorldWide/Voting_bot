@@ -126,6 +126,14 @@ async def get_votes():
             return json.load(f)
     return []
 
+@app.get("/api/employees")
+async def get_employees(department: str = None):
+    if department:
+        filtered = [fio for fio, dept in EMPLOYEES.items() if dept.lower() == department.lower()]
+    else:
+        filtered = list(EMPLOYEES.keys())
+    return {"employees": filtered}
+
 @app.get("/api/departments")
 async def get_departments():
     # Берём уникальные отделы из Excel
