@@ -103,6 +103,13 @@ async def get_votes():
             return json.load(f)
     return []
 
+@app.get("/api/departments")
+async def get_departments():
+    # Берём уникальные отделы из Excel
+    departments = list(set(EMPLOYEES.values()))
+    departments.sort()
+    return {"departments": departments}
+
 
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
