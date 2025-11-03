@@ -24,6 +24,7 @@ button:hover { box-shadow:0 0 10px rgba(0,200,255,0.5); transform:translateY(-2p
 @media (max-width:480px) { .vote-container { padding:18px 20px; border-radius:16px; } .vote-container h1 { font-size:1.4rem; } button { font-size:0.95rem; } }
 .screen { display: none; flex-direction: column; align-items: center; justify-content: center; width:100%; }
 .screen.active { display: flex; }
+#validationMessage { color:#ff6b6b; font-size:0.9rem; display:none; margin-bottom:10px; }
 </style>
 </head>
 
@@ -46,7 +47,8 @@ button:hover { box-shadow:0 0 10px rgba(0,200,255,0.5); transform:translateY(-2p
     <select id="department" required>
       <option value="" disabled selected>Загрузка отделов...</option>
     </select>
-    <button id="nextStep1">Далее</button>
+    <p id="validationMessage"></p>
+    <button id="nextStep1" disabled>Далее</button>
   </div>
 
   <!-- Шаг 2 -->
@@ -75,8 +77,11 @@ const step3 = document.getElementById("step3");
 
 const fioInput = document.getElementById("fio");
 const departmentSelect = document.getElementById("department");
+const nextStep1 = document.getElementById("nextStep1");
+const validationMessage = document.getElementById("validationMessage");
 const nomineeInput = document.getElementById("nominee");
 
+// Загрузка отделов
 async function loadDepartments() {
   try {
     const res = await fetch("https://www.prosoft-people.ru/api/departments");
@@ -95,25 +100,58 @@ async function loadDepartments() {
 }
 loadDepartments();
 
-// Переход между шагами
-document.getElementById("nextStep1").addEventListener("click", () => {
-  if (!fioInput.value || !departmentSelect.value) {
-    alert("Пожалуйста, заполните все поля.");
+// Проверка ФИО и отдела на первом шаге
+async function validateUser() {
+  const fio = fioInput.value.trim();
+  const department = departmentSelect.value;
+  if (!fio || !department) {
+    nextStep1.disabled = true;
+    validationMessage.style.display = "none";
     return;
   }
+
+  try {
+    const res = await fetch("https://www.prosoft-people.ru/api/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fio, department })
+    });
+    const data = await res.json();
+    if (data.valid) {
+      nextStep1.disabled = false;
+      validationMessage.style.display = "none";
+    } else {
+      nextStep1.disabled = true;
+      validationMessage.textContent = "❌ Некорректное ФИО или отдел";
+      validationMessage.style.display = "block";
+    }
+  } catch (err) {
+    console.error(err);
+    nextStep1.disabled = true;
+    validationMessage.textContent = "Ошибка проверки данных";
+    validationMessage.style.display = "block";
+  }
+}
+
+fioInput.addEventListener("input", validateUser);
+departmentSelect.addEventListener("change", validateUser);
+
+// Переход на шаг 2
+nextStep1.addEventListener("click", () => {
   step1.classList.remove("active");
   step2.classList.add("active");
 });
 
+// Отправка голоса
 document.getElementById("submitVote").addEventListener("click", async () => {
-  if (!nomineeInput.value) {
+  if (!nomineeInput.value.trim()) {
     alert("Введите ФИО сотрудника.");
     return;
   }
   const voteData = {
-    fio: fioInput.value,
+    fio: fioInput.value.trim(),
     department: departmentSelect.value,
-    nominee: nomineeInput.value,
+    nominee: nomineeInput.value.trim(),
     chat_id: tg.initDataUnsafe?.user?.id || null
   };
 
@@ -138,8 +176,9 @@ document.getElementById("submitVote").addEventListener("click", async () => {
 });
 </script>
 
-</body>
 <img src="https://marketelectro.ru/sites/default/files/userfiles/11309/ps_logo_blue_2c_rus.png"
      alt="Prosoft Systems Logo"
      style="position:absolute; top:10px; left:10px; width:120px; height:auto; z-index:1;">
+
+</body>
 </html>
