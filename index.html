@@ -4,7 +4,6 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Голосование — Прософт Системы</title>
-
 <style>
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin:0; padding:0; height:100%; width:100%; font-family:"Inter","Segoe UI",Roboto,sans-serif; background: radial-gradient(circle at 70% 30%, #0a2942 0%, #02121f 80%); color:#fff; display:flex; justify-content:center; align-items:center; overflow:hidden; touch-action: manipulation; }
@@ -107,25 +106,26 @@ async function validateUser() {
   const fio = fioInput.value.trim();
   const department = departmentSelect.value;
 
-  // Сразу блокируем кнопку при изменении
   nextStep1.disabled = true;
   validationMessage.style.display = "none";
 
   if (!fio || !department) return;
 
-  // Очистка предыдущего таймера
-  if (validationTimeout) clearTimeout(validationTimeout);
-
+  // debounce
+  clearTimeout(validationTimeout);
   validationTimeout = setTimeout(async () => {
     try {
       const res = await fetch("https://www.prosoft-people.ru/api/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fio, department })
+        // отправляем в формате, который сервер обычно ожидает
+        body: JSON.stringify({ full_name: fio, department })
       });
       const data = await res.json();
+      // проверяем где именно поле valid в ответе
+      const isValid = data.valid ?? data.data?.valid ?? false;
 
-      if (data.valid) {
+      if (isValid) {
         nextStep1.disabled = false;
         validationMessage.style.display = "none";
       } else {
@@ -139,10 +139,10 @@ async function validateUser() {
       validationMessage.textContent = "Ошибка проверки данных";
       validationMessage.style.display = "block";
     }
-  }, 400); // debounce 0.4 секунды
+  }, 500);
 }
 
-// Вешаем события
+// слушатели
 fioInput.addEventListener("input", validateUser);
 departmentSelect.addEventListener("change", validateUser);
 
@@ -155,10 +155,7 @@ nextStep1.addEventListener("click", () => {
 // Отправка голоса
 document.getElementById("submitVote").addEventListener("click", async () => {
   const nominee = nomineeInput.value.trim();
-  if (!nominee) {
-    alert("Введите ФИО сотрудника.");
-    return;
-  }
+  if (!nominee) { alert("Введите ФИО сотрудника."); return; }
 
   const voteData = {
     fio: fioInput.value.trim(),
