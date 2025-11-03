@@ -95,6 +95,29 @@ async def submit_vote(vote: Vote):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/validate")
+async def validate_user(payload: dict):
+    """
+    Проверяет ФИО и отдел по Excel.
+    Ожидаемый payload: { "fio": "Иванов Иван Иванович", "department": "Отдел" }
+    """
+    try:
+        fio = payload.get("fio", "").strip()
+        dept = payload.get("department", "").strip()
+        if not fio or not dept:
+            return {"valid": False}
+
+        if fio not in EMPLOYEES:
+            return {"valid": False}
+
+        correct_dept = EMPLOYEES[fio]
+        if correct_dept.lower() != dept.lower():
+            return {"valid": False}
+
+        return {"valid": True}
+    except Exception as e:
+        return {"valid": False, "error": str(e)}
+
 
 @app.get("/api/votes")
 async def get_votes():

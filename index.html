@@ -103,43 +103,38 @@ let validationTimeout;
 
 // Проверка ФИО и отдела на первом шаге
 async function validateUser() {
-  const fio = fioInput.value.trim();
-  const department = departmentSelect.value;
+    const fio = fioInput.value.trim();
+    const department = departmentSelect.value;
 
-  nextStep1.disabled = true;
-  validationMessage.style.display = "none";
+    nextStep1.disabled = true;
+    validationMessage.style.display = "none";
 
-  if (!fio || !department) return;
+    if (!fio || !department) return;
 
-  // debounce
-  clearTimeout(validationTimeout);
-  validationTimeout = setTimeout(async () => {
-    try {
-      const res = await fetch("https://www.prosoft-people.ru/api/validate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        // отправляем в формате, который сервер обычно ожидает
-        body: JSON.stringify({ full_name: fio, department })
-      });
-      const data = await res.json();
-      // проверяем где именно поле valid в ответе
-      const isValid = data.valid ?? data.data?.valid ?? false;
-
-      if (isValid) {
-        nextStep1.disabled = false;
-        validationMessage.style.display = "none";
-      } else {
-        nextStep1.disabled = true;
-        validationMessage.textContent = "❌ Некорректное ФИО или отдел";
-        validationMessage.style.display = "block";
-      }
-    } catch (err) {
-      console.error(err);
-      nextStep1.disabled = true;
-      validationMessage.textContent = "Ошибка проверки данных";
-      validationMessage.style.display = "block";
-    }
-  }, 500);
+    clearTimeout(validationTimeout);
+    validationTimeout = setTimeout(async () => {
+        try {
+            const res = await fetch("https://www.prosoft-people.ru/api/validate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ fio, department })
+            });
+            const data = await res.json();
+            if (data.valid) {
+                nextStep1.disabled = false;
+                validationMessage.style.display = "none";
+            } else {
+                nextStep1.disabled = true;
+                validationMessage.textContent = "❌ Некорректное ФИО или отдел";
+                validationMessage.style.display = "block";
+            }
+        } catch (err) {
+            console.error(err);
+            nextStep1.disabled = true;
+            validationMessage.textContent = "Ошибка проверки данных";
+            validationMessage.style.display = "block";
+        }
+    }, 500);
 }
 
 // слушатели
