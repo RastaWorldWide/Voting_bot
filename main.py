@@ -17,7 +17,6 @@ bot = Bot(BOT_TOKEN)
 dp = Dispatcher(bot)
 
 app = FastAPI(title="Prosoft Voting API")
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -34,90 +33,67 @@ class Vote(BaseModel):
     nominee: str
     chat_id: int
 
-
+# ----------------- Загрузка сотрудников -----------------
 def load_employees_from_excel():
     df = pd.read_excel("/root/telegram_webapp/prosoft_staff.xls")
-    # Ожидаем, что в файле есть столбцы "ФИО" и "Отдел"
     employees = {}
     for _, row in df.iterrows():
-        fio = str(row["ФИО"]).strip()
-        dept = str(row["Подразделение"]).strip()
+        fio = str(row["ФИО"]).strip().replace("\u00A0", " ")
+        dept = str(row["Подразделение"]).strip().replace("\u00A0", " ")
         if fio:
             employees[fio] = dept
-    return employees
+    employees_norm = {k.lower(): v.lower() for k, v in employees.items()}
+    return employees, employees_norm
 
-EMPLOYEES = load_employees_from_excel()
+EMPLOYEES, EMPLOYEES_NORM = load_employees_from_excel()
 print(f"✅ Загружено {len(EMPLOYEES)} сотрудников для проверки ФИО")
 
+# ----------------- API -----------------
+@app.post("/api/validate")
+async def validate_user(payload: dict):
+    fio = payload.get("fio", "").strip().replace("\u00A0", " ")
+    dept = payload.get("department", "").strip().replace("\u00A0", " ")
+    if not fio or not dept:
+        return {"valid": False}
+
+    if fio.lower() not in EMPLOYEES_NORM:
+        return {"valid": False}
+
+    if EMPLOYEES_NORM[fio.lower()] != dept.lower():
+        return {"valid": False}
+
+    return {"valid": True}
 
 @app.post("/api/votes")
 async def submit_vote(vote: Vote):
-    try:
-        fio = vote.fio.strip()
-        dept = vote.department.strip()
+    fio = vote.fio.strip().replace("\u00A0", " ")
+    dept = vote.department.strip().replace("\u00A0", " ")
 
-        # Проверка: есть ли ФИО в Excel
-        if fio not in EMPLOYEES:
-            raise HTTPException(status_code=400, detail=f"ФИО '{fio}' не найдено в списке сотрудников!")
+    if fio.lower() not in EMPLOYEES_NORM:
+        raise HTTPException(status_code=400, detail=f"ФИО '{fio}' не найдено!")
 
-        # Проверка: совпадает ли отдел
-        correct_dept = EMPLOYEES[fio]
-        if correct_dept.lower() != dept.lower():
-            raise HTTPException(
-                status_code=400,
-                detail=f"Отдел не совпадает с данными в системе ({correct_dept})."
-            )
+    if EMPLOYEES_NORM[fio.lower()] != dept.lower():
+        raise HTTPException(status_code=400, detail=f"Отдел не совпадает с данными ({EMPLOYEES[fio]})")
 
-        # Сохранение голоса
-        vote_data = vote.dict()
-        vote_data["date"] = datetime.now().isoformat()
+    vote_data = vote.dict()
+    vote_data["date"] = datetime.now().isoformat()
 
-        votes = []
-        if os.path.exists(VOTES_FILE):
-            with open(VOTES_FILE, "r", encoding="utf-8") as f:
-                votes = json.load(f)
+    votes = []
+    if os.path.exists(VOTES_FILE):
+        with open(VOTES_FILE, "r", encoding="utf-8") as f:
+            votes = json.load(f)
+    votes.append(vote_data)
+    with open(VOTES_FILE, "w", encoding="utf-8") as f:
+        json.dump(votes, f, ensure_ascii=False, indent=2)
 
-        votes.append(vote_data)
-        with open(VOTES_FILE, "w", encoding="utf-8") as f:
-            json.dump(votes, f, ensure_ascii=False, indent=2)
+    asyncio.create_task(bot.send_message(vote.chat_id, f"Спасибо, {vote.fio}! Ваш голос за {vote.nominee} учтён 🎉"))
+    return {"status": "ok", "message": "Голос сохранён"}
 
-        # Сообщение в Telegram
-        asyncio.create_task(bot.send_message(
-            vote.chat_id,
-            f"Спасибо, {vote.fio}! Ваш голос за {vote.nominee} учтён 🎉"
-        ))
-
-        return {"status": "ok", "message": "Голос сохранён"}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/api/validate")
-async def validate_user(payload: dict):
-    """
-    Проверяет ФИО и отдел по Excel.
-    Ожидаемый payload: { "fio": "Иванов Иван Иванович", "department": "Отдел" }
-    """
-    try:
-        fio = payload.get("fio", "").strip()
-        dept = payload.get("department", "").strip()
-        if not fio or not dept:
-            return {"valid": False}
-
-        if fio not in EMPLOYEES:
-            return {"valid": False}
-
-        correct_dept = EMPLOYEES[fio]
-        if correct_dept.lower() != dept.lower():
-            return {"valid": False}
-
-        return {"valid": True}
-    except Exception as e:
-        return {"valid": False, "error": str(e)}
-
+@app.get("/api/departments")
+async def get_departments():
+    departments = list(set(EMPLOYEES.values()))
+    departments.sort()
+    return {"departments": departments}
 
 @app.get("/api/votes")
 async def get_votes():
@@ -126,51 +102,35 @@ async def get_votes():
             return json.load(f)
     return []
 
-@app.get("/api/departments")
-async def get_departments():
-    # Берём уникальные отделы из Excel
-    departments = list(set(EMPLOYEES.values()))
-    departments.sort()
-    return {"departments": departments}
-
-
+# ----------------- Telegram бот -----------------
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
     user_first_name = message.from_user.first_name or "друг"
     inline_markup = InlineKeyboardMarkup()
-    inline_markup.add(
-        InlineKeyboardButton(
-            text="🗳 Проголосовать",
-            web_app=WebAppInfo(url="https://www.prosoft-people.ru")
-        )
-    )
+    inline_markup.add(InlineKeyboardButton(text="🗳 Проголосовать", web_app=WebAppInfo(url="https://www.prosoft-people.ru")))
     await message.answer(
         f"Привет, {user_first_name}! 👋\n\n"
         f"✨ <b>30 лет — растём вместе!</b>\n"
-        f"В честь юбилея запускаем номинацию <b>«Люди Роста»</b> —\n"
-        f"чтобы отметить тех, кто вдохновляет, двигает вперёд и делает нашу команду сильнее.\n\n"
-        f"🗳 <b>Твой голос — важен!</b>\n"
-        f"Выбери коллегу, который, по твоему мнению, достоин этой награды.",
+        f"В честь юбилея запускаем номинацию <b>«Люди Роста»</b>.\n\n"
+        f"🗳 <b>Твой голос — важен!</b>",
         reply_markup=inline_markup,
         parse_mode="HTML"
     )
 
+# ----------------- Запуск -----------------
 async def start_bot():
     await dp.start_polling()
 
 if __name__ == "__main__":
-    import asyncio
     import logging
     import uvicorn
 
     logging.basicConfig(level=logging.INFO)
 
     async def main():
-        # Запускаем polling бота
         logging.info("🚀 Запуск Telegram-бота...")
         bot_task = asyncio.create_task(dp.start_polling())
 
-        # Запускаем FastAPI в том же loop'е
         logging.info("🌐 Запуск FastAPI...")
         config = uvicorn.Config(app, host="0.0.0.0", port=8000, loop="asyncio")
         server = uvicorn.Server(config)
@@ -179,7 +139,7 @@ if __name__ == "__main__":
         try:
             await asyncio.gather(bot_task, api_task)
         except KeyboardInterrupt:
-            logging.info("🛑 Остановка по сигналу...")
+            logging.info("🛑 Остановка...")
             bot_task.cancel()
             api_task.cancel()
 
