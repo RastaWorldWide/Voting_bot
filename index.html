@@ -107,13 +107,15 @@ async function validateUser() {
   const fio = fioInput.value.trim();
   const department = departmentSelect.value;
 
+  // Сразу блокируем кнопку при изменении
   nextStep1.disabled = true;
   validationMessage.style.display = "none";
 
   if (!fio || !department) return;
 
-  // debounce, чтобы не слать запрос на каждый символ
-  clearTimeout(validationTimeout);
+  // Очистка предыдущего таймера
+  if (validationTimeout) clearTimeout(validationTimeout);
+
   validationTimeout = setTimeout(async () => {
     try {
       const res = await fetch("https://www.prosoft-people.ru/api/validate", {
@@ -122,6 +124,7 @@ async function validateUser() {
         body: JSON.stringify({ fio, department })
       });
       const data = await res.json();
+
       if (data.valid) {
         nextStep1.disabled = false;
         validationMessage.style.display = "none";
@@ -136,11 +139,11 @@ async function validateUser() {
       validationMessage.textContent = "Ошибка проверки данных";
       validationMessage.style.display = "block";
     }
-  }, 500); // задержка 0.5 секунды для удобства
+  }, 400); // debounce 0.4 секунды
 }
 
+// Вешаем события
 fioInput.addEventListener("input", validateUser);
-fioInput.addEventListener("blur", validateUser);
 departmentSelect.addEventListener("change", validateUser);
 
 // Переход на шаг 2
