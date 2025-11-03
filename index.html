@@ -105,7 +105,6 @@ loadDepartments();
 
 let validationTimeout;
 
-// Проверка ФИО и отдела
 async function checkFioDept(fio, dept) {
   try {
     const res = await fetch("https://www.prosoft-people.ru/api/validate", {
@@ -121,7 +120,7 @@ async function checkFioDept(fio, dept) {
   }
 }
 
-// Дебаунс проверка первого шага
+// Проверка ФИО и отдела с дебаунсом
 async function validateUser() {
   const fio = fioInput.value.trim();
   const department = departmentSelect.value;
@@ -162,6 +161,7 @@ nextStep1.addEventListener("click", async () => {
   try {
     const res = await fetch(`https://www.prosoft-people.ru/api/employees?department=${encodeURIComponent(department)}`);
     const data = await res.json();
+
     nomineeSelect.innerHTML = '<option value="" disabled selected>Выберите сотрудника</option>';
     data.employees.forEach(emp => {
       if (emp.fio !== fio) { // нельзя голосовать за себя
