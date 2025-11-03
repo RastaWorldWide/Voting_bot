@@ -142,7 +142,7 @@ if __name__ == "__main__":
 
         # Запускаем FastAPI в том же loop'е
         logging.info("🌐 Запуск FastAPI...")
-        config = uvicorn.Config(app, host="127.0.0.1", port=8000, loop="asyncio")
+        config = uvicorn.Config(app, host="0.0.0.0", port=8000, loop="asyncio")
         server = uvicorn.Server(config)
         api_task = asyncio.create_task(server.serve())
 
