@@ -100,40 +100,47 @@ async function loadDepartments() {
 }
 loadDepartments();
 
+let validationTimeout;
+
 // Проверка ФИО и отдела на первом шаге
 async function validateUser() {
   const fio = fioInput.value.trim();
   const department = departmentSelect.value;
-  if (!fio || !department) {
-    nextStep1.disabled = true;
-    validationMessage.style.display = "none";
-    return;
-  }
 
-  try {
-    const res = await fetch("https://www.prosoft-people.ru/api/validate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fio, department })
-    });
-    const data = await res.json();
-    if (data.valid) {
-      nextStep1.disabled = false;
-      validationMessage.style.display = "none";
-    } else {
+  nextStep1.disabled = true;
+  validationMessage.style.display = "none";
+
+  if (!fio || !department) return;
+
+  // debounce, чтобы не слать запрос на каждый символ
+  clearTimeout(validationTimeout);
+  validationTimeout = setTimeout(async () => {
+    try {
+      const res = await fetch("https://www.prosoft-people.ru/api/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fio, department })
+      });
+      const data = await res.json();
+      if (data.valid) {
+        nextStep1.disabled = false;
+        validationMessage.style.display = "none";
+      } else {
+        nextStep1.disabled = true;
+        validationMessage.textContent = "❌ Некорректное ФИО или отдел";
+        validationMessage.style.display = "block";
+      }
+    } catch (err) {
+      console.error(err);
       nextStep1.disabled = true;
-      validationMessage.textContent = "❌ Некорректное ФИО или отдел";
+      validationMessage.textContent = "Ошибка проверки данных";
       validationMessage.style.display = "block";
     }
-  } catch (err) {
-    console.error(err);
-    nextStep1.disabled = true;
-    validationMessage.textContent = "Ошибка проверки данных";
-    validationMessage.style.display = "block";
-  }
+  }, 500); // задержка 0.5 секунды для удобства
 }
 
 fioInput.addEventListener("input", validateUser);
+fioInput.addEventListener("blur", validateUser);
 departmentSelect.addEventListener("change", validateUser);
 
 // Переход на шаг 2
@@ -144,14 +151,16 @@ nextStep1.addEventListener("click", () => {
 
 // Отправка голоса
 document.getElementById("submitVote").addEventListener("click", async () => {
-  if (!nomineeInput.value.trim()) {
+  const nominee = nomineeInput.value.trim();
+  if (!nominee) {
     alert("Введите ФИО сотрудника.");
     return;
   }
+
   const voteData = {
     fio: fioInput.value.trim(),
     department: departmentSelect.value,
-    nominee: nomineeInput.value.trim(),
+    nominee,
     chat_id: tg.initDataUnsafe?.user?.id || null
   };
 
