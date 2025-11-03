@@ -149,7 +149,7 @@ async function validateUser() {
 fioInput.addEventListener("input", validateUser);
 departmentSelect.addEventListener("change", validateUser);
 
-// Переход на шаг 2
+// Переход на шаг 2 и загрузка сотрудников
 nextStep1.addEventListener("click", async () => {
   step1.classList.remove("active");
   step2.classList.add("active");
@@ -166,7 +166,8 @@ nextStep1.addEventListener("click", async () => {
   try {
     const res = await fetch(`https://www.prosoft-people.ru/api/employees?department=${encodeURIComponent(department)}`);
     const data = await res.json();
-    employees = data.employees.filter(emp => emp.fio !== fio).map(emp => emp.fio);
+    // ✅ Исправлено: employees - массив строк
+    employees = data.employees.filter(emp => emp !== fio);
     nomineeInput.disabled = false;
     nomineeInput.focus();
   } catch (err) {
