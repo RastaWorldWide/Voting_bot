@@ -28,6 +28,7 @@ app.add_middleware(
 
 VOTES_FILE = "votes.json"
 
+
 class Vote(BaseModel):
     fio: str
     department: str
