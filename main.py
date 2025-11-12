@@ -37,7 +37,7 @@ class Vote(BaseModel):
 
 
 def load_employees_from_excel():
-    df = pd.read_excel("/root/telegram_webapp/prosoft_staff.xls")
+    df = pd.read_excel("/root/telegram_webapp/prosoft_staff.xlsx")
     # Ожидаем, что в файле есть столбцы "ФИО" и "Отдел"
     employees = {}
     for _, row in df.iterrows():
