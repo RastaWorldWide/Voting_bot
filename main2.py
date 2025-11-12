@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 import pandas as pd
 
 load_dotenv()
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+BOT_TOKEN = os.getenv("BOT_TOKEN2")
 
 bot = Bot(BOT_TOKEN)
 dp = Dispatcher(bot)
@@ -26,7 +26,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-VOTES_FILE = "votes.json"
+VOTES_FILE = "votes2.json"
 
 
 class Vote(BaseModel):
@@ -37,7 +37,7 @@ class Vote(BaseModel):
 
 
 def load_employees_from_excel():
-    df = pd.read_excel("/root/telegram_webapp/prosoft_staff.xlsx")
+    df = pd.read_excel("/root/telegram_webapp/reg_lab_staff.xlsx")
     # Ожидаем, что в файле есть столбцы "ФИО" и "Отдел"
     employees = {}
     for _, row in df.iterrows():
@@ -183,7 +183,7 @@ if __name__ == "__main__":
 
         # Запускаем FastAPI в том же loop'е
         logging.info("🌐 Запуск FastAPI...")
-        config = uvicorn.Config(app, host="0.0.0.0", port=8000, loop="asyncio")
+        config = uvicorn.Config(app, host="0.0.0.0", port=8001, loop="asyncio")
         server = uvicorn.Server(config)
         api_task = asyncio.create_task(server.serve())
 
