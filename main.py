@@ -9,6 +9,8 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from dotenv import load_dotenv
 import pandas as pd
+from fastapi.responses import HTMLResponse
+
 
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -168,6 +170,11 @@ async def start(message: types.Message):
 
 async def start_bot():
     await dp.start_polling()
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_webapp():
+    with open("/root/voting_bot/index.html", "r", encoding="utf-8") as f:
+        return f.read()
 
 if __name__ == "__main__":
     import asyncio
