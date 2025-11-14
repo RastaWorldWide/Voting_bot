@@ -52,6 +52,9 @@ def load_local_employees():
 LOCAL_EMPLOYEES = load_local_employees()
 print(f"✅ Локальная база (для входа): {len(LOCAL_EMPLOYEES)} сотрудников")
 
+LOCAL_DEPARTMENTS = sorted(set(LOCAL_EMPLOYEES.values()))
+print(f"✅ Локальная база: {len(LOCAL_EMPLOYEES)} сотрудников, {len(LOCAL_DEPARTMENTS)} отделов")
+
 
 # 🌐 ОБЩАЯ база — для отображения кандидатов (все из обоих Excel)
 def load_all_employees_for_nominees():
@@ -184,10 +187,7 @@ async def get_employees(department: str = None):
 
 @app.get("/api/departments")
 async def get_departments():
-    departments = list(set(ALL_EMPLOYEES.values()))
-    departments.sort()
-    return {"departments": departments}
-
+    return {"departments": LOCAL_DEPARTMENTS}
 
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
