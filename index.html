@@ -13,39 +13,39 @@
     }
 
     html, body {
-      height: 100%;
-      width: 100%;
+      margin: 0;
+      padding: 0;
       font-family: "IBM Plex Sans", "Inter", "Segoe UI", Roboto, sans-serif;
-      background: url('https://www.prosoft-people.ru/static/bg.jpg') no-repeat center center fixed;
-      background-size: cover;
       color: #e0e7ff;
+      overflow: hidden;
+      touch-action: manipulation;
+      overscroll-behavior: none;
+      position: relative;
+      height: 100%;
+    }
+
+    /* Контейнер с динамической высотой от Telegram */
+    #viewport {
+      width: 100%;
+      min-height: 100dvh;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      overflow: hidden;
-      touch-action: manipulation;
-      overscroll-behavior: none;
+      background: url('https://www.prosoft-people.ru/static/bg.jpg') no-repeat center center;
+      background-size: cover;
     }
 
-    .logo-top {
-      position: absolute;
-      top: 24px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 160px;
-      z-index: 3;
-    }
-
+    .logo-top,
     .logo-bottom {
-      position: absolute;
-      bottom: 24px;
+      position: fixed;
       left: 50%;
       transform: translateX(-50%);
-      width: 180px;
-      opacity: 0.95;
       z-index: 3;
     }
+
+    .logo-top { top: 24px; width: 160px; }
+    .logo-bottom { bottom: 24px; width: 180px; opacity: 0.95; }
 
     .vote-container {
       position: relative;
@@ -213,50 +213,84 @@
   </style>
 </head>
 <body>
-  <img src="https://www.prosoft-people.ru/static/logo_top.png" class="logo-top" alt="Прософт Системы">
-  <div class="vote-container">
-    <!-- Шаг 1 -->
-    <div id="step1" class="screen active">
-      <h1>Ваше участие</h1>
-      <p>Пожалуйста, подтвердите вашу личность для голосования</p>
+  <div id="viewport">
+    <img src="https://www.prosoft-people.ru/static/logo_top.png" class="logo-top" alt="Прософт Системы">
+    <div class="vote-container">
+      <!-- Шаг 1 -->
+      <div id="step1" class="screen active">
+        <h1>Ваше участие</h1>
+        <p>Пожалуйста, подтвердите вашу личность для голосования</p>
 
-      <label for="fio">ФИО</label>
-      <input type="text" id="fio" placeholder="Иванов Иван Иванович" autocomplete="off" required />
+        <label for="fio">ФИО</label>
+        <input type="text" id="fio" placeholder="Иванов Иван Иванович" autocomplete="off" required />
 
-      <label for="department">Отдел</label>
-      <select id="department" required>
-        <option value="" disabled selected>Загрузка отделов…</option>
-      </select>
+        <label for="department">Отдел</label>
+        <select id="department" required>
+          <option value="" disabled selected>Загрузка отделов…</option>
+        </select>
 
-      <div id="validationMessage"></div>
-      <button id="nextStep1" disabled>Далее</button>
+        <div id="validationMessage"></div>
+        <button id="nextStep1" disabled>Далее</button>
+      </div>
+
+      <!-- Шаг 2 -->
+      <div id="step2" class="screen">
+        <h1>Выберите кандидата</h1>
+        <p>Голосуйте за коллегу, чья работа вдохновляет вас</p>
+
+        <label for="nomineeInput">ФИО сотрудника</label>
+        <input type="text" id="nomineeInput" placeholder="Начните вводить ФИО" autocomplete="off" disabled />
+        <ul id="nomineeList"></ul>
+
+        <button id="submitVote" disabled>Отправить голос</button>
+      </div>
+
+      <!-- Шаг 3 -->
+      <div id="step3" class="screen">
+        <h1>✅ Спасибо!</h1>
+        <p>Ваш голос учтён.<br>Для выхода просто закройте окно.</p>
+      </div>
     </div>
-
-    <!-- Шаг 2 -->
-    <div id="step2" class="screen">
-      <h1>Выберите кандидата</h1>
-      <p>Голосуйте за коллегу, чья работа вдохновляет вас</p>
-
-      <label for="nomineeInput">ФИО сотрудника</label>
-      <input type="text" id="nomineeInput" placeholder="Начните вводить ФИО" autocomplete="off" disabled />
-      <ul id="nomineeList"></ul>
-
-      <button id="submitVote" disabled>Отправить голос</button>
-    </div>
-
-    <!-- Шаг 3 -->
-    <div id="step3" class="screen">
-      <h1>✅ Спасибо!</h1>
-      <p>Ваш голос учтён.<br>Для выхода просто закройте окно.</p>
-    </div>
+    <img src="https://www.prosoft-people.ru/static/logo_bottom.png" class="logo-bottom" alt="Прософт Системы">
   </div>
-  <img src="https://www.prosoft-people.ru/static/logo_bottom.png" class="logo-bottom" alt="Прософт Системы">
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script>
     const tg = window.Telegram?.WebApp;
-    if (tg) tg.expand();
+    if (tg) {
+      tg.expand();
+      tg.disableVerticalSwipes(); // отключаем свайпы вверх/вниз
+    }
 
+    // 🔑 Динамическая высота viewport — ключ к стабильности при клавиатуре
+    function updateViewportHeight() {
+      const viewport = document.getElementById('viewport');
+      if (tg && typeof tg.viewportHeight === 'number') {
+        viewport.style.height = tg.viewportHeight + 'px';
+      } else {
+        // fallback для открытия в браузере
+        viewport.style.height = '100dvh';
+      }
+    }
+
+    // Применяем при загрузке
+    updateViewportHeight();
+
+    // Слушаем изменения (например, при открытии клавиатуры)
+    if (tg && tg.onEvent) {
+      tg.onEvent('viewportChanged', updateViewportHeight);
+    }
+
+    // Блокируем нежелательные свайпы и "подёргивания"
+    document.body.style.touchAction = 'none';
+    document.body.addEventListener('touchmove', e => {
+      // Разрешаем скролл только внутри списка кандидатов
+      if (!e.target.closest('#nomineeList, input, textarea, select')) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    // === Остальной JS — без изменений ===
     const step1 = document.getElementById("step1");
     const step2 = document.getElementById("step2");
     const step3 = document.getElementById("step3");
@@ -273,7 +307,6 @@
     let employees = [];
     let validationTimeout = null;
 
-    // ——— Загрузка отделов ———
     async function loadDepartments() {
       try {
         const res = await fetch("https://www.prosoft-people.ru/api/departments");
@@ -294,7 +327,6 @@
 
     loadDepartments();
 
-    // ——— Валидация ФИО + отдел ———
     async function checkFioDept(fio, dept) {
       try {
         const res = await fetch("https://www.prosoft-people.ru/api/validate", {
@@ -334,7 +366,6 @@
     fioInput.addEventListener("input", validateUser);
     departmentSelect.addEventListener("change", validateUser);
 
-    // ——— Переход к шагу 2 ———
     nextStep1.addEventListener("click", async () => {
       const fio = fioInput.value.trim();
       const dept = departmentSelect.value;
@@ -361,7 +392,6 @@
       }
     });
 
-    // ——— Поиск кандидата ———
     nomineeInput.addEventListener("input", () => {
       const query = nomineeInput.value.trim().toLowerCase();
       nomineeList.innerHTML = "";
@@ -389,7 +419,6 @@
       });
     });
 
-    // ——— Отправка голоса ———
     submitVoteBtn.addEventListener("click", async () => {
       const fio = fioInput.value.trim();
       const dept = departmentSelect.value;
@@ -423,7 +452,9 @@
         if (res.ok) {
           step2.classList.remove("active");
           step3.classList.add("active");
-          if (tg && tg.close) tg.close();
+          if (tg && tg.close) {
+            setTimeout(() => tg.close(), 2000);
+          }
         } else {
           const err = await res.json().catch(() => ({}));
           alert("❌ " + (err.detail || "Не удалось отправить голос. Попробуйте позже."));
