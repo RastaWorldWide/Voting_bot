@@ -38,20 +38,35 @@ class Vote(BaseModel):
     chat_id: int
 
 
-def load_employees_from_excel():
-    df = pd.read_excel("/root/voting_bot/prosoft_staff.xlsx")
-    # Ожидаем, что в файле есть столбцы "ФИО" и "Отдел"
+def load_all_employees():
     employees = {}
-    for _, row in df.iterrows():
-        fio = str(row["ФИО"]).strip()
-        dept = str(row["Подразделение"]).strip()
-        if fio:
-            employees[fio] = dept
+
+    # Загрузка основного штата
+    try:
+        df1 = pd.read_excel("/root/voting_bot/prosoft_staff.xlsx")
+        for _, row in df1.iterrows():
+            fio = str(row["ФИО"]).strip()
+            dept = str(row["Подразделение"]).strip()
+            if fio and fio not in employees:  # не перезаписываем существующих
+                employees[fio] = dept
+    except Exception as e:
+        print("⚠️ Ошибка загрузки prosoft_staff.xlsx:", e)
+
+    # Загрузка Реглаба
+    try:
+        df2 = pd.read_excel("/root/voting_bot/reg_lab_staff.xlsx")
+        for _, row in df2.iterrows():
+            fio = str(row["ФИО"]).strip()
+            dept = str(row["Подразделение"]).strip()
+            if fio and fio not in employees:  # оставляем первое вхождение
+                employees[fio] = dept
+    except Exception as e:
+        print("⚠️ Ошибка загрузки reg_lab_staff.xlsx:", e)
+
     return employees
 
-EMPLOYEES = load_employees_from_excel()
-print(f"✅ Загружено {len(EMPLOYEES)} сотрудников для проверки ФИО")
-
+EMPLOYEES = load_all_employees()
+print(f"✅ Загружено {len(EMPLOYEES)} сотрудников из ОБЕИХ баз")
 
 @app.post("/api/votes")
 async def submit_vote(vote: Vote):

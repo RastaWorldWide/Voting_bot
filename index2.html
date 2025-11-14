@@ -187,7 +187,7 @@ nextStep1.addEventListener("click", async () => {
   submitVoteBtn.disabled = true;
 
   try {
-    const res = await fetch(`https://www.prosoft-people.online/api/employees?department=${encodeURIComponent(department)}`);
+    const res = await fetch("https://www.prosoft-people.online/api/employees");
     const data = await res.json();
     employees = data.employees.filter(emp => emp !== fio);
     nomineeInput.disabled = false;
