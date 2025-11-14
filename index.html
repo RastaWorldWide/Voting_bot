@@ -211,55 +211,6 @@
       }
     }
   </style>
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
-  <title>Голосование — Прософт Системы</title>
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    html, body {
-      height: 100%;
-      width: 100%;
-      font-family: "IBM Plex Sans", "Inter", "Segoe UI", Roboto, sans-serif;
-      background: url('https://www.prosoft-people.ru/фон.jpg') no-repeat center center fixed;
-      background-size: cover;
-      color: #e0e7ff;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      overflow: hidden;
-      touch-action: manipulation;
-      overscroll-behavior: none;
-    }
-
-    .logo-top {
-      position: absolute;
-      top: 24px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 160px;
-      z-index: 3;
-    }
-
-    .logo-bottom {
-      position: absolute;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 180px;
-      opacity: 0.95;
-      z-index: 3;
-    }
-
-    /* ... остальные стили без изменений ... */
-  </style>
 </head>
 <body>
   <img src="https://www.prosoft-people.ru/static/logo_top.png" class="logo-top" alt="Прософт Системы">
@@ -421,7 +372,7 @@
 
       const matches = employees.filter(emp =>
         emp && emp.toLowerCase().includes(query)
-      ).slice(0, 15); // лимит для производительности
+      ).slice(0, 15);
 
       if (matches.length === 0) return;
 
@@ -449,7 +400,6 @@
         return;
       }
 
-      // Двойная проверка валидности (защита от подмены данных)
       const stillValid = await checkFioDept(fio, dept);
       if (!stillValid) {
         alert("❌ Данные устарели. Пожалуйста, вернитесь и повторите ввод.");
@@ -473,7 +423,7 @@
         if (res.ok) {
           step2.classList.remove("active");
           step3.classList.add("active");
-          if (tg && tg.close) tg.close(); // опционально: закрыть после успеха
+          if (tg && tg.close) tg.close();
         } else {
           const err = await res.json().catch(() => ({}));
           alert("❌ " + (err.detail || "Не удалось отправить голос. Попробуйте позже."));
