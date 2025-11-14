@@ -211,9 +211,58 @@
       }
     }
   </style>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+  <title>Голосование — Прософт Системы</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      font-family: "IBM Plex Sans", "Inter", "Segoe UI", Roboto, sans-serif;
+      background: url('https://www.prosoft-people.ru/фон.jpg') no-repeat center center fixed;
+      background-size: cover;
+      color: #e0e7ff;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      touch-action: manipulation;
+      overscroll-behavior: none;
+    }
+
+    .logo-top {
+      position: absolute;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 160px;
+      z-index: 3;
+    }
+
+    .logo-bottom {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 180px;
+      opacity: 0.95;
+      z-index: 3;
+    }
+
+    /* ... остальные стили без изменений ... */
+  </style>
 </head>
 <body>
-  <img src="лого (1).png" class="logo-top" alt="Прософт Системы">
+  <img src="https://www.prosoft-people.ru/лого%20(1).png" class="logo-top" alt="Прософт Системы">
   <div class="vote-container">
     <!-- Шаг 1 -->
     <div id="step1" class="screen active">
@@ -250,7 +299,7 @@
       <p>Ваш голос учтён.<br>Для выхода просто закройте окно.</p>
     </div>
   </div>
-  <img src="лого (2).png" class="logo-bottom" alt="Прософт Системы">
+  <img src="https://www.prosoft-people.ru/лого%20(2).png" class="logo-bottom" alt="Прософт Системы">
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script>
