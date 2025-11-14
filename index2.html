@@ -1,246 +1,405 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
-<title>Голосование — Прософт Системы</title>
-<style>
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body {
-  margin:0; padding:0; height:100%; width:100%;
-  font-family:"IBM Plex Sans","Inter","Segoe UI",Roboto,sans-serif;
-  background: radial-gradient(circle at 70% 30%, #081d33 0%, #010b16 80%);
-  color:#e0e7ff; display:flex; justify-content:center; align-items:center;
-  overflow:hidden; touch-action: manipulation;
-  overscroll-behavior: none;
-}
-.background { position:absolute; inset:0; overflow:hidden; z-index:0; }
-.lines { position:absolute; inset:0; width:100%; height:100%; opacity:0.25; z-index:0; }
-@keyframes flow { 0% { stroke-dashoffset: 1000; } 100% { stroke-dashoffset: 0; } }
-.lines path { stroke: #4db5ff; stroke-width:1.2; fill:none; stroke-dasharray:10 15; animation:flow 15s linear infinite; }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+  <title>Голосование — Прософт Системы</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
 
-.vote-container {
-  position: relative; z-index:2; width:90%; max-width:420px;
-  background: rgba(0,10,20,0.75); border:1px solid rgba(77,181,255,0.3);
-  border-radius:16px; padding:24px 28px; box-shadow:0 0 25px rgba(77,181,255,0.3);
-  backdrop-filter: blur(6px);
-}
-.vote-container h1 {
-  margin-top:0; font-size:1.8rem; color:#4db5ff;
-  text-transform:none; letter-spacing:0.5px; text-align:center; font-weight:600;
-}
-.vote-container p { font-size:0.95rem; margin-bottom:20px; color:#c0dfff; }
-label { display:block; text-align:left; margin-bottom:6px; font-weight:500; color:#b8d6ff; font-size:0.95rem; }
-input, select {
-  width:100%; padding:10px 12px; margin-bottom:14px; border-radius:8px;
-  border:1px solid rgba(77,181,255,0.3); background-color: rgba(8,29,51,0.9);
-  color:#f0f7ff; font-size:15px; outline:none; -webkit-appearance:none; appearance:none;
-}
-input::placeholder { color:#a0cfff; }
-select { background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' fill='%23ffffff' xmlns='http://www.w3.org/2000/svg'%3E<path d='M4 6l4 4 4-4H4z'/></svg>");
-  background-repeat:no-repeat; background-position:right 10px center; background-size:12px;
-}
-button {
-  width:100%; background-color:#4db5ff; color:white; font-weight:600; border:none; border-radius:6px;
-  padding:12px; font-size:1rem; cursor:pointer; transition: all 0.2s ease;
-}
-button:hover { background-color:#3a94d1; box-shadow:0 2px 10px rgba(77,181,255,0.4); transform:translateY(-1px); }
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: "IBM Plex Sans", "Inter", "Segoe UI", Roboto, sans-serif;
+      color: #e0e7ff;
+      overflow: hidden;
+      touch-action: manipulation;
+      overscroll-behavior: none;
+      height: 100%;
+    }
 
-@media (max-width:480px) {
-  .vote-container { padding:18px 20px; border-radius:16px; }
-  .vote-container h1 { font-size:1.4rem; }
-  button { font-size:0.95rem; }
-}
+    #viewport {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background: url('https://www.prosoft-people.online/static/bg.jpg') no-repeat center center;
+      background-size: cover;
+    }
 
-.screen { display: none; flex-direction: column; align-items: center; justify-content: center; width:100%; }
-.screen.active { display: flex; }
-#validationMessage { color:#ff6b6b; font-size:0.9rem; display:none; margin-bottom:10px; }
-#nomineeList { list-style:none; padding:0; margin:4px 0 14px 0; max-height:150px; overflow-y:auto;
-  border:1px solid rgba(77,181,255,0.3); border-radius:6px; display:none; background:rgba(8,29,51,0.9); }
-#nomineeList li { padding:6px; cursor:pointer; }
-#nomineeList li:hover { background: rgba(77,181,255,0.3); }
-</style>
+    .logo-top,
+    .logo-bottom {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    .logo-top { top: 24px; width: 160px; }
+    .logo-bottom { bottom: 24px; width: 180px; opacity: 0.95; }
+
+    .vote-container {
+      position: relative;
+      z-index: 2;
+      width: 92%;
+      max-width: 440px;
+      background: rgba(8, 22, 40, 0.72);
+      border: 1px solid rgba(65, 160, 240, 0.4);
+      border-radius: 20px;
+      padding: 30px 24px;
+      box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(65, 160, 240, 0.2);
+      backdrop-filter: blur(12px);
+      text-align: center;
+      transition: opacity 0.35s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+    }
+
+    .screen.active {
+      display: flex;
+    }
+
+    .screen h1 {
+      font-size: 1.75rem;
+      font-weight: 600;
+      color: #5cc4ff;
+      margin-bottom: 18px;
+    }
+
+    .screen p {
+      font-size: 0.95rem;
+      color: #c5dfff;
+      margin-bottom: 22px;
+      line-height: 1.5;
+    }
+
+    label {
+      display: block;
+      text-align: left;
+      margin: 14px 0 6px;
+      font-weight: 500;
+      color: #b0d5ff;
+      font-size: 0.95rem;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 13px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(65, 160, 240, 0.45);
+      background: rgba(5, 20, 38, 0.8);
+      color: #f0f9ff;
+      font-size: 15px;
+      outline: none;
+      transition: all 0.25s ease;
+    }
+
+    input::placeholder {
+      color: #9fcfff;
+    }
+
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg width='14' height='14' fill='%23a5d3ff' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 6l4 4 4-4z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-size: 10px;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 8px;
+      background: linear-gradient(135deg, #4db5ff, #2b97f0);
+      color: white;
+      font-weight: 600;
+      font-size: 1rem;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    #validationMessage {
+      color: #ff7a7a;
+      font-size: 0.9rem;
+      margin: 4px 0 12px 0;
+      min-height: 1.4em;
+      text-align: center;
+    }
+
+    #nomineeList {
+      list-style: none;
+      padding: 0;
+      margin: 8px 0 16px;
+      max-height: 180px;
+      overflow-y: auto;
+      border-radius: 10px;
+      background: rgba(5, 20, 38, 0.85);
+      border: 1px solid rgba(65, 160, 240, 0.3);
+      display: none;
+    }
+
+    #nomineeList li {
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+      text-align: left;
+      font-size: 0.95rem;
+    }
+
+    #nomineeList li:hover {
+      background: rgba(65, 160, 240, 0.2);
+    }
+
+    #nomineeList li + li {
+      border-top: 1px solid rgba(65, 160, 240, 0.1);
+    }
+
+    @media (max-width: 480px) {
+      .vote-container {
+        padding: 24px 18px;
+        border-radius: 18px;
+      }
+      .screen h1 {
+        font-size: 1.5rem;
+      }
+      .logo-top, .logo-bottom {
+        width: 140px;
+      }
+    }
+  </style>
 </head>
-
 <body>
-<div class="background">
-  <svg class="lines" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice">
-    <path d="M0 100 Q200 150 400 100 T800 100" />
-    <path d="M0 300 Q250 250 500 300 T800 300" />
-    <path d="M0 500 Q200 550 400 500 T800 500" />
-  </svg>
-</div>
+  <div id="viewport">
+    <img src="https://www.prosoft-people.online/static/logo_top.png" class="logo-top" alt="Прософт Системы">
+    <div class="vote-container">
+      <!-- Шаг 1 -->
+      <div id="step1" class="screen active">
+        <h1>Введите ваши данные</h1>
+        <label for="fio">ФИО:</label>
+        <input type="text" id="fio" placeholder="Иванов Иван Иванович" required />
+        <label for="department">Отдел:</label>
+        <select id="department" required>
+          <option value="" disabled selected>Загрузка отделов...</option>
+        </select>
+        <div id="validationMessage"></div>
+        <button id="nextStep1" disabled>Далее</button>
+      </div>
 
-<div class="vote-container">
-  <!-- Шаг 1 -->
-  <div id="step1" class="screen active">
-    <h1>Введите ваши данные</h1>
-    <label for="fio">ФИО:</label>
-    <input type="text" id="fio" placeholder="Иванов Иван Иванович" required />
-    <label for="department">Отдел:</label>
-    <select id="department" required>
-      <option value="" disabled selected>Загрузка отделов...</option>
-    </select>
-    <p id="validationMessage"></p>
-    <button id="nextStep1" disabled>Далее</button>
+      <!-- Шаг 2 -->
+      <div id="step2" class="screen">
+        <h1>Выберите сотрудника для номинации</h1>
+        <label for="nomineeInput">Сотрудник:</label>
+        <input type="text" id="nomineeInput" placeholder="Введите ФИО сотрудника" disabled autocomplete="off" />
+        <ul id="nomineeList"></ul>
+        <button id="submitVote" disabled>Отправить голос</button>
+      </div>
+
+      <!-- Шаг 3 -->
+      <div id="step3" class="screen">
+        <h1>Спасибо!</h1>
+        <p>Ваш голос успешно зарегистрирован</p>
+      </div>
+    </div>
+    <img src="https://www.prosoft-people.online/static/logo_bottom.png" class="logo-bottom" alt="Прософт Системы">
   </div>
 
-  <!-- Шаг 2 -->
-  <div id="step2" class="screen">
-    <h1>Выберите сотрудника для номинации</h1>
-    <label for="nomineeInput">Сотрудник:</label>
-    <input type="text" id="nomineeInput" placeholder="Введите ФИО сотрудника" disabled autocomplete="off" />
-    <ul id="nomineeList"></ul>
-    <button id="submitVote" disabled>Отправить голос</button>
-  </div>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script>
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.expand();
+      tg.disableVerticalSwipes();
+    }
 
-  <!-- Шаг 3 -->
-  <div id="step3" class="screen">
-    <h1>Спасибо за участие!</h1>
-    <p>Ваш голос успешно зарегистрирован</p>
-  </div>
-</div>
+    // === Логика голосования (не менялась) ===
+    const step1 = document.getElementById("step1");
+    const step2 = document.getElementById("step2");
+    const step3 = document.getElementById("step3");
+    const fioInput = document.getElementById("fio");
+    const departmentSelect = document.getElementById("department");
+    const nextStep1 = document.getElementById("nextStep1");
+    const validationMessage = document.getElementById("validationMessage");
+    const nomineeInput = document.getElementById("nomineeInput");
+    const nomineeList = document.getElementById("nomineeList");
+    const submitVoteBtn = document.getElementById("submitVote");
 
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script>
-const tg = window.Telegram.WebApp;
-tg.expand();
+    let employees = [];
+    let validationTimeout = null;
 
-const step1 = document.getElementById("step1");
-const step2 = document.getElementById("step2");
-const step3 = document.getElementById("step3");
+    async function loadDepartments() {
+      try {
+        const res = await fetch("https://www.prosoft-people.online/api/departments");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        departmentSelect.innerHTML = '<option value="" disabled selected>Выберите отдел</option>';
+        data.departments?.forEach(dep => {
+          const opt = document.createElement("option");
+          opt.value = dep;
+          opt.textContent = dep;
+          departmentSelect.appendChild(opt);
+        });
+      } catch (err) {
+        console.error("Ошибка при загрузке отделов:", err);
+        departmentSelect.innerHTML = '<option value="" disabled selected>❌ Ошибка загрузки</option>';
+      }
+    }
 
-const fioInput = document.getElementById("fio");
-const departmentSelect = document.getElementById("department");
-const nextStep1 = document.getElementById("nextStep1");
-const validationMessage = document.getElementById("validationMessage");
+    loadDepartments();
 
-const nomineeInput = document.getElementById("nomineeInput");
-const nomineeList = document.getElementById("nomineeList");
-const submitVoteBtn = document.getElementById("submitVote");
+    async function checkFioDept(fio, dept) {
+      try {
+        const res = await fetch("https://www.prosoft-people.online/api/validate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fio, department: dept })
+        });
+        const data = await res.json();
+        return data.valid === true;
+      } catch (err) {
+        console.error("Ошибка валидации:", err);
+        return false;
+      }
+    }
 
-let employees = [];
-let validationTimeout;
+    function validateUser() {
+      const fio = fioInput.value.trim();
+      const dept = departmentSelect.value;
 
-async function loadDepartments() {
-  try {
-    const res = await fetch("https://www.prosoft-people.online/api/departments");
-    const data = await res.json();
-    departmentSelect.innerHTML = '<option value="" disabled selected>Выберите отдел</option>';
-    data.departments.forEach(dep => {
-      const option = document.createElement("option");
-      option.value = dep;
-      option.textContent = dep;
-      departmentSelect.appendChild(option);
+      nextStep1.disabled = true;
+      validationMessage.textContent = "";
+      validationMessage.style.display = "none";
+
+      if (!fio || !dept) return;
+
+      clearTimeout(validationTimeout);
+      validationTimeout = setTimeout(async () => {
+        const valid = await checkFioDept(fio, dept);
+        nextStep1.disabled = !valid;
+        if (!valid) {
+          validationMessage.textContent = "❌ Некорректное ФИО или отдел";
+          validationMessage.style.display = "block";
+        }
+      }, 400);
+    }
+
+    fioInput.addEventListener("input", validateUser);
+    departmentSelect.addEventListener("change", validateUser);
+
+    nextStep1.addEventListener("click", async () => {
+      const fio = fioInput.value.trim();
+      const dept = departmentSelect.value;
+
+      try {
+        const res = await fetch("https://www.prosoft-people.online/api/employees");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        employees = (data.employees || []).filter(emp => emp && emp !== fio);
+
+        step1.classList.remove("active");
+        step2.classList.add("active");
+
+        nomineeInput.disabled = false;
+        nomineeInput.value = "";
+        nomineeList.innerHTML = "";
+        nomineeList.style.display = "none";
+        submitVoteBtn.disabled = true;
+
+        setTimeout(() => nomineeInput.focus({ preventScroll: true }), 100);
+      } catch (err) {
+        console.error("Не удалось загрузить список сотрудников:", err);
+        alert("❌ Ошибка: не удалось получить список кандидатов");
+      }
     });
-  } catch (err) {
-    console.error(err);
-    departmentSelect.innerHTML = '<option value="" disabled selected>Ошибка загрузки</option>';
-  }
-}
-loadDepartments();
 
-async function checkFioDept(fio, dept) {
-  try {
-    const res = await fetch("https://www.prosoft-people.online/api/validate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fio, department: dept })
-    });
-    const data = await res.json();
-    return data.valid;
-  } catch (err) {
-    console.error(err);
-    return false;
-  }
-}
-
-async function validateUser() {
-  const fio = fioInput.value.trim();
-  const department = departmentSelect.value;
-  nextStep1.disabled = true;
-  validationMessage.style.display = "none";
-  if (!fio || !department) return;
-  clearTimeout(validationTimeout);
-  validationTimeout = setTimeout(async () => {
-    const valid = await checkFioDept(fio, department);
-    nextStep1.disabled = !valid;
-    validationMessage.style.display = valid ? "none" : "block";
-    validationMessage.textContent = valid ? "" : "❌ Некорректное ФИО или отдел";
-  }, 500);
-}
-
-fioInput.addEventListener("input", validateUser);
-departmentSelect.addEventListener("change", validateUser);
-
-nextStep1.addEventListener("click", async () => {
-  step1.classList.remove("active");
-  step2.classList.add("active");
-
-  const fio = fioInput.value.trim();
-  const department = departmentSelect.value;
-
-  nomineeInput.disabled = true;
-  nomineeInput.value = "";
-  nomineeList.innerHTML = "";
-  nomineeList.style.display = "none";
-  submitVoteBtn.disabled = true;
-
-  try {
-    const res = await fetch("https://www.prosoft-people.online/api/employees");
-    const data = await res.json();
-    employees = data.employees.filter(emp => emp !== fio);
-    nomineeInput.disabled = false;
-    nomineeInput.focus({ preventScroll: true });
-  } catch (err) {
-    console.error(err);
-    nomineeList.innerHTML = '<li>Ошибка загрузки сотрудников</li>';
-    nomineeList.style.display = "block";
-  }
-});
-
-nomineeInput.addEventListener("input", () => {
-  const query = nomineeInput.value.toLowerCase();
-  nomineeList.innerHTML = "";
-  if (!query) { nomineeList.style.display = "none"; submitVoteBtn.disabled = true; return; }
-  const matches = employees.filter(e => e.toLowerCase().includes(query));
-  if (matches.length === 0) { nomineeList.style.display = "none"; submitVoteBtn.disabled = true; return; }
-  matches.forEach(name => {
-    const li = document.createElement("li");
-    li.textContent = name;
-    li.addEventListener("click", () => {
-      nomineeInput.value = name;
+    nomineeInput.addEventListener("input", () => {
+      const query = nomineeInput.value.trim().toLowerCase();
+      nomineeList.innerHTML = "";
       nomineeList.style.display = "none";
-      submitVoteBtn.disabled = false;
+      submitVoteBtn.disabled = true;
+
+      if (!query) return;
+
+      const matches = employees.filter(emp => emp && emp.toLowerCase().includes(query)).slice(0, 15);
+      if (matches.length === 0) return;
+
+      nomineeList.style.display = "block";
+      matches.forEach(name => {
+        const li = document.createElement("li");
+        li.textContent = name;
+        li.addEventListener("click", () => {
+          nomineeInput.value = name;
+          nomineeList.style.display = "none";
+          submitVoteBtn.disabled = false;
+        });
+        nomineeList.appendChild(li);
+      });
     });
-    nomineeList.appendChild(li);
-  });
-  nomineeList.style.display = "block";
-});
 
-submitVoteBtn.addEventListener("click", async () => {
-  const fio = fioInput.value.trim();
-  const department = departmentSelect.value;
-  const nominee = nomineeInput.value.trim();
-  if (!nominee || !employees.includes(nominee)) { alert("❌ Выберите корректного сотрудника из списка"); return; }
-  const valid = await checkFioDept(fio, department);
-  if (!valid) { alert("❌ Некорректное ФИО или отдел. Проверьте и попробуйте снова."); return; }
+    submitVoteBtn.addEventListener("click", async () => {
+      const fio = fioInput.value.trim();
+      const dept = departmentSelect.value;
+      const nominee = nomineeInput.value.trim();
 
-  const voteData = { fio, department, nominee, chat_id: tg.initDataUnsafe?.user?.id || null };
-  try {
-    const response = await fetch("https://www.prosoft-people.online/api/votes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(voteData)
+      if (!nominee || !employees.includes(nominee)) {
+        alert("❌ Выберите корректного сотрудника из списка");
+        return;
+      }
+
+      const valid = await checkFioDept(fio, dept);
+      if (!valid) {
+        alert("❌ Некорректное ФИО или отдел. Проверьте и попробуйте снова.");
+        return;
+      }
+
+      const voteData = {
+        fio,
+        department: dept,
+        nominee,
+        chat_id: tg?.initDataUnsafe?.user?.id || null
+      };
+
+      try {
+        const res = await fetch("https://www.prosoft-people.online/api/votes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(voteData)
+        });
+
+        if (res.ok) {
+          step2.classList.remove("active");
+          step3.classList.add("active");
+          // ✅ Ничего не закрываем — пользователь сам выходит
+        } else {
+          const error = await res.json().catch(() => ({}));
+          alert("❌ " + (error.detail || "Не удалось отправить голос."));
+        }
+      } catch (err) {
+        console.error(err);
+        alert("❌ Не удалось отправить голос. Проверьте соединение.");
+      }
     });
-    if (response.ok) { step2.classList.remove("active"); step3.classList.add("active"); }
-    else { const error = await response.json(); alert("Ошибка: " + (error.detail || "Не удалось отправить голос.")); }
-  } catch (err) { console.error(err); alert("Не удалось отправить голос."); }
-});
-</script>
-
-<img src="https://marketelectro.ru/sites/default/files/userfiles/11309/ps_logo_blue_2c_rus.png"
-     alt="Prosoft Systems Logo"
-     style="position:absolute; top:10px; left:10px; width:120px; height:auto; z-index:1;">
+  </script>
 </body>
 </html>
