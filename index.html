@@ -218,8 +218,8 @@
 
       <!-- Шаг 3 -->
       <div id="step3" class="screen">
-        <h1>Спасибо за участие!</h1>
-        <p>Ваш голос успешно зарегистрирован</p>
+        <h1>Спасибо!</h1>
+        <p>Ваш голос учтён ✅</p>
       </div>
     </div>
     <img src="https://www.prosoft-people.ru/static/logo_bottom.png" class="logo-bottom" alt="Прософт Системы">
@@ -233,26 +233,15 @@
       tg.disableVerticalSwipes();
     }
 
-    // === Затемнение логотипов при фокусе (необязательно, но приятно) ===
-    const logoTop = document.querySelector('.logo-top');
-    const logoBottom = document.querySelector('.logo-bottom');
-    const fioInput = document.getElementById("fio");
-    const nomineeInput = document.getElementById("nomineeInput");
-
-    const dim = () => { if (logoTop) logoTop.style.opacity = '0.3'; if (logoBottom) logoBottom.style.opacity = '0.3'; };
-    const undim = () => { if (logoTop) logoTop.style.opacity = '1'; if (logoBottom) logoBottom.style.opacity = '0.95'; };
-    fioInput?.addEventListener('focus', dim);
-    fioInput?.addEventListener('blur', undim);
-    nomineeInput?.addEventListener('focus', dim);
-    nomineeInput?.addEventListener('blur', undim);
-
     // === Логика голосования ===
     const step1 = document.getElementById("step1");
     const step2 = document.getElementById("step2");
     const step3 = document.getElementById("step3");
+    const fioInput = document.getElementById("fio");
     const departmentSelect = document.getElementById("department");
     const nextStep1 = document.getElementById("nextStep1");
     const validationMessage = document.getElementById("validationMessage");
+    const nomineeInput = document.getElementById("nomineeInput");
     const nomineeList = document.getElementById("nomineeList");
     const submitVoteBtn = document.getElementById("submitVote");
 
@@ -401,7 +390,7 @@
         if (res.ok) {
           step2.classList.remove("active");
           step3.classList.add("active");
-          // ✅ НЕ закрываем — пользователь сам решает, когда выйти
+          // ✅ Ничего не закрываем — пользователь сам выходит
         } else {
           const error = await res.json().catch(() => ({}));
           alert("❌ " + (error.detail || "Не удалось отправить голос."));
