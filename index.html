@@ -20,14 +20,12 @@
       overflow: hidden;
       touch-action: manipulation;
       overscroll-behavior: none;
-      position: relative;
       height: 100%;
     }
 
-    /* Контейнер с динамической высотой от Telegram */
     #viewport {
       width: 100%;
-      min-height: 100dvh;
+      height: 100%;
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -36,17 +34,19 @@
       background-size: cover;
     }
 
+    /* Логотипы — без z-index, чтобы оказались ПОД .vote-container */
     .logo-top,
     .logo-bottom {
       position: fixed;
       left: 50%;
       transform: translateX(-50%);
-      z-index: 3;
+      pointer-events: none; /* клики проходят сквозь них */
     }
 
     .logo-top { top: 24px; width: 160px; }
     .logo-bottom { bottom: 24px; width: 180px; opacity: 0.95; }
 
+    /* Панель голосования — теперь ПЕРЕКРЫВАЕТ логотипы */
     .vote-container {
       position: relative;
       z-index: 2;
@@ -120,7 +120,7 @@
     }
 
     select {
-      background-image: url("data:image/svg+xml,%3Csvg width='14' height='14' fill='%23a5d3ff' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 6l4 4 4-4z'/%3E%3C/svg%3E");
+      background-image: url("image/svg+xml,%3Csvg width='14' height='14' fill='%23a5d3ff' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 6l4 4 4-4z'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
       background-position: right 12px center;
       background-size: 10px;
@@ -191,13 +191,6 @@
       border-top: 1px solid rgba(65, 160, 240, 0.1);
     }
 
-    @media (prefers-reduced-motion: reduce) {
-      * {
-        transition: none !important;
-        animation: none !important;
-      }
-    }
-
     @media (max-width: 480px) {
       .vote-container {
         padding: 24px 18px;
@@ -259,48 +252,36 @@
     const tg = window.Telegram?.WebApp;
     if (tg) {
       tg.expand();
-      tg.disableVerticalSwipes(); // отключаем свайпы вверх/вниз
+      tg.disableVerticalSwipes();
     }
 
-    // 🔑 Динамическая высота viewport — ключ к стабильности при клавиатуре
-    function updateViewportHeight() {
-      const viewport = document.getElementById('viewport');
-      if (tg && typeof tg.viewportHeight === 'number') {
-        viewport.style.height = tg.viewportHeight + 'px';
-      } else {
-        // fallback для открытия в браузере
-        viewport.style.height = '100dvh';
-      }
-    }
+    // === Логика затемнения логотипов при фокусе ===
+    const logoTop = document.querySelector('.logo-top');
+    const logoBottom = document.querySelector('.logo-bottom');
+    const fioInput = document.getElementById("fio");
+    const nomineeInput = document.getElementById("nomineeInput");
 
-    // Применяем при загрузке
-    updateViewportHeight();
+    const dimLogos = () => {
+      if (logoTop) logoTop.style.opacity = '0.3';
+      if (logoBottom) logoBottom.style.opacity = '0.3';
+    };
+    const restoreLogos = () => {
+      if (logoTop) logoTop.style.opacity = '1';
+      if (logoBottom) logoBottom.style.opacity = '0.95';
+    };
 
-    // Слушаем изменения (например, при открытии клавиатуры)
-    if (tg && tg.onEvent) {
-      tg.onEvent('viewportChanged', updateViewportHeight);
-    }
+    fioInput?.addEventListener('focus', dimLogos);
+    fioInput?.addEventListener('blur', restoreLogos);
+    nomineeInput?.addEventListener('focus', dimLogos);
+    nomineeInput?.addEventListener('blur', restoreLogos);
 
-    // Блокируем нежелательные свайпы и "подёргивания"
-    document.body.style.touchAction = 'none';
-    document.body.addEventListener('touchmove', e => {
-      // Разрешаем скролл только внутри списка кандидатов
-      if (!e.target.closest('#nomineeList, input, textarea, select')) {
-        e.preventDefault();
-      }
-    }, { passive: false });
-
-    // === Остальной JS — без изменений ===
+    // === Основная логика голосования ===
     const step1 = document.getElementById("step1");
     const step2 = document.getElementById("step2");
     const step3 = document.getElementById("step3");
-
-    const fioInput = document.getElementById("fio");
     const departmentSelect = document.getElementById("department");
     const nextStep1 = document.getElementById("nextStep1");
     const validationMessage = document.getElementById("validationMessage");
-
-    const nomineeInput = document.getElementById("nomineeInput");
     const nomineeList = document.getElementById("nomineeList");
     const submitVoteBtn = document.getElementById("submitVote");
 
