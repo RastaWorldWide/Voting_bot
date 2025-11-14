@@ -9,86 +9,119 @@
 html, body {
   margin:0; padding:0; height:100%; width:100%;
   font-family:"IBM Plex Sans","Inter","Segoe UI",Roboto,sans-serif;
-  background: radial-gradient(circle at 70% 30%, #081d33 0%, #010b16 80%);
+  background: url('фон.jpg') no-repeat center center fixed;
+  background-size: cover;
   color:#e0e7ff; display:flex; justify-content:center; align-items:center;
   overflow:hidden; touch-action: manipulation;
   overscroll-behavior: none;
 }
 
-.background { position:absolute; inset:0; overflow:hidden; z-index:0; }
-.lines { position:absolute; inset:0; width:100%; height:100%; opacity:0.25; z-index:0; }
-@keyframes flow { 0% { stroke-dashoffset: 1000; } 100% { stroke-dashoffset: 0; } }
-.lines path { stroke: #4db5ff; stroke-width:1.2; fill:none; stroke-dasharray:10 15; animation:flow 15s linear infinite; }
+.overlay-dark {
+  position:absolute;
+  inset:0;
+  background: rgba(0, 10, 20, 0.55);
+  backdrop-filter: blur(2px);
+  z-index:0;
+}
 
 .vote-container {
   position: relative; z-index:2; width:90%; max-width:420px;
-  background: rgba(0,10,20,0.75); border:1px solid rgba(77,181,255,0.3);
-  border-radius:16px; padding:24px 28px; box-shadow:0 0 25px rgba(77,181,255,0.3);
-  backdrop-filter: blur(6px);
+  background: rgba(0,10,20,0.60);
+  border:1px solid rgba(77,181,255,0.35);
+  border-radius:18px; padding:26px 30px;
+  box-shadow:0 0 25px rgba(77,181,255,0.30);
+  backdrop-filter: blur(10px);
+  text-align:center;
 }
 .vote-container h1 {
   margin-top:0; font-size:1.8rem; color:#4db5ff;
-  text-transform:none; letter-spacing:0.5px; text-align:center; font-weight:600;
+  font-weight:600;
 }
-.vote-container p { font-size:0.95rem; margin-bottom:20px; color:#c0dfff; }
-label { display:block; text-align:left; margin-bottom:6px; font-weight:500; color:#b8d6ff; font-size:0.95rem; }
+.vote-container p {
+  font-size:0.95rem; margin-bottom:20px; color:#c0dfff;
+}
+
+label {
+  display:block; text-align:left; margin-bottom:6px;
+  font-weight:500; color:#b8d6ff; font-size:0.95rem;
+}
+
 input, select {
-  width:100%; padding:10px 12px; margin-bottom:14px; border-radius:8px;
-  border:1px solid rgba(77,181,255,0.3); background-color: rgba(8,29,51,0.9);
-  color:#f0f7ff; font-size:15px; outline:none; -webkit-appearance:none; appearance:none;
+  width:100%; padding:12px 14px; margin-bottom:14px; border-radius:10px;
+  border:1px solid rgba(77,181,255,0.35); background-color: rgba(8,29,51,0.85);
+  color:#f0f7ff; font-size:15px; outline:none;
 }
 input::placeholder { color:#a0cfff; }
-select { background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' fill='%23ffffff' xmlns='http://www.w3.org/2000/svg'%3E<path d='M4 6l4 4 4-4H4z'/></svg>");
+select {
+  background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' fill='%23ffffff' xmlns='http://www.w3.org/2000/svg'%3E<path d='M4 6l4 4 4-4H4z'/></svg>");
   background-repeat:no-repeat; background-position:right 10px center; background-size:12px;
 }
+
 button {
-  width:100%; background-color:#4db5ff; color:white; font-weight:600; border:none; border-radius:6px;
-  padding:12px; font-size:1rem; cursor:pointer; transition: all 0.2s ease;
+  width:100%; background-color:#4db5ff; color:white; font-weight:600;
+  border:none; border-radius:10px; padding:13px; font-size:1rem;
+  cursor:pointer; transition: all 0.2s ease;
 }
-button:hover { background-color:#3a94d1; box-shadow:0 2px 10px rgba(77,181,255,0.4); transform:translateY(-1px); }
+button:hover {
+  background-color:#3a94d1;
+  box-shadow:0 2px 10px rgba(77,181,255,0.4);
+  transform:translateY(-1px);
+}
 
 @media (max-width:480px) {
-  .vote-container { padding:18px 20px; border-radius:16px; }
-  .vote-container h1 { font-size:1.4rem; }
-  button { font-size:0.95rem; }
+  .vote-container { padding:20px 20px; border-radius:16px; }
+  .vote-container h1 { font-size:1.45rem; }
 }
 
 .screen { display: none; flex-direction: column; align-items: center; justify-content: center; width:100%; }
 .screen.active { display: flex; }
+
 #validationMessage { color:#ff6b6b; font-size:0.9rem; display:none; margin-bottom:10px; }
-#nomineeList { list-style:none; padding:0; margin:4px 0 14px 0; max-height:150px; overflow-y:auto;
-  border:1px solid rgba(77,181,255,0.3); border-radius:6px; display:none; background:rgba(8,29,51,0.9); }
-#nomineeList li { padding:6px; cursor:pointer; }
+
+#nomineeList {
+  list-style:none; padding:0; margin:4px 0 14px 0; max-height:150px; overflow-y:auto;
+  border:1px solid rgba(77,181,255,0.3); border-radius:8px; display:none;
+  background:rgba(8,29,51,0.85);
+}
+#nomineeList li { padding:8px; cursor:pointer; }
 #nomineeList li:hover { background: rgba(77,181,255,0.3); }
+
+.logo-top {
+  position:absolute; top:18px; left:50%; transform:translateX(-50%);
+  width:150px; z-index:3;
+}
+
+.logo-bottom {
+  position:absolute; bottom:18px; left:50%; transform:translateX(-50%);
+  width:160px; opacity:0.9; z-index:3;
+}
 </style>
 </head>
 
 <body>
-<div class="background">
-  <svg class="lines" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice">
-    <path d="M0 100 Q200 150 400 100 T800 100" />
-    <path d="M0 300 Q250 250 500 300 T800 300" />
-    <path d="M0 500 Q200 550 400 500 T800 500" />
-  </svg>
-</div>
+<img src="лого (1).png" class="logo-top" alt="Logo Top">
+<div class="overlay-dark"></div>
 
 <div class="vote-container">
+
   <!-- Шаг 1 -->
   <div id="step1" class="screen active">
     <h1>Введите ваши данные</h1>
     <label for="fio">ФИО:</label>
     <input type="text" id="fio" placeholder="Иванов Иван Иванович" required />
+
     <label for="department">Отдел:</label>
     <select id="department" required>
       <option value="" disabled selected>Загрузка отделов...</option>
     </select>
+
     <p id="validationMessage"></p>
     <button id="nextStep1" disabled>Далее</button>
   </div>
 
   <!-- Шаг 2 -->
   <div id="step2" class="screen">
-    <h1>Выберите сотрудника для номинации</h1>
+    <h1>Выберите сотрудника</h1>
     <label for="nomineeInput">Сотрудник:</label>
     <input type="text" id="nomineeInput" placeholder="Введите ФИО сотрудника" disabled autocomplete="off" />
     <ul id="nomineeList"></ul>
@@ -97,10 +130,12 @@ button:hover { background-color:#3a94d1; box-shadow:0 2px 10px rgba(77,181,255,0
 
   <!-- Шаг 3 -->
   <div id="step3" class="screen">
-    <h1>Спасибо за участие!</h1>
-    <p>Ваш голос успешно зарегистрирован</p>
+    <h1>Спасибо!</h1>
+    <p>Ваш голос успешно зарегистрирован.</p>
   </div>
 </div>
+
+<img src="лого (2).png" class="logo-bottom" alt="Logo Bottom">
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script>
@@ -127,6 +162,7 @@ async function loadDepartments() {
   try {
     const res = await fetch("https://www.prosoft-people.ru/api/departments");
     const data = await res.json();
+
     departmentSelect.innerHTML = '<option value="" disabled selected>Выберите отдел</option>';
     data.departments.forEach(dep => {
       const option = document.createElement("option");
@@ -148,6 +184,7 @@ async function checkFioDept(fio, dept) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ fio, department: dept })
     });
+
     const data = await res.json();
     return data.valid;
   } catch (err) {
@@ -159,6 +196,7 @@ async function checkFioDept(fio, dept) {
 async function validateUser() {
   const fio = fioInput.value.trim();
   const department = departmentSelect.value;
+
   nextStep1.disabled = true;
   validationMessage.style.display = "none";
   if (!fio || !department) return;
@@ -168,7 +206,7 @@ async function validateUser() {
     nextStep1.disabled = !valid;
     validationMessage.style.display = valid ? "none" : "block";
     validationMessage.textContent = valid ? "" : "❌ Некорректное ФИО или отдел";
-  }, 500);
+  }, 400);
 }
 
 fioInput.addEventListener("input", validateUser);
@@ -196,7 +234,7 @@ nextStep1.addEventListener("click", async () => {
   } catch (err) {
     console.error(err);
     nomineeList.innerHTML = '<li>Ошибка загрузки сотрудников</li>';
-    nomineeList.style.display = "block";
+    nomineeList.style.display = 'block';
   }
 });
 
@@ -240,8 +278,5 @@ submitVoteBtn.addEventListener("click", async () => {
 });
 </script>
 
-<img src="https://marketelectro.ru/sites/default/files/userfiles/11309/ps_logo_blue_2c_rus.png"
-     alt="Prosoft Systems Logo"
-     style="position:absolute; top:10px; left:10px; width:120px; height:auto; z-index:1;">
 </body>
 </html>
