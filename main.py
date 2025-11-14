@@ -38,53 +38,74 @@ class Vote(BaseModel):
     chat_id: int
 
 
-def load_all_employees():
+# 🔐 ЛОКАЛЬНАЯ база — только для валидации (вход разрешён ТОЛЬКО этим сотрудникам)
+def load_local_employees():
+    df = pd.read_excel("/root/voting_bot/prosoft_staff.xlsx")
     employees = {}
+    for _, row in df.iterrows():
+        fio = str(row["ФИО"]).strip()
+        dept = str(row["Подразделение"]).strip()
+        if fio:
+            employees[fio] = dept
+    return employees
 
-    # Загрузка основного штата
+LOCAL_EMPLOYEES = load_local_employees()
+print(f"✅ Локальная база (для входа): {len(LOCAL_EMPLOYEES)} сотрудников")
+
+
+# 🌐 ОБЩАЯ база — для отображения кандидатов (все из обоих Excel)
+def load_all_employees_for_nominees():
+    all_emps = {}
+    # 1. Основной штат
     try:
         df1 = pd.read_excel("/root/voting_bot/prosoft_staff.xlsx")
         for _, row in df1.iterrows():
             fio = str(row["ФИО"]).strip()
             dept = str(row["Подразделение"]).strip()
-            if fio and fio not in employees:  # не перезаписываем существующих
-                employees[fio] = dept
+            if fio and fio not in all_emps:
+                all_emps[fio] = dept
     except Exception as e:
         print("⚠️ Ошибка загрузки prosoft_staff.xlsx:", e)
 
-    # Загрузка Реглаба
+    # 2. Реглаб
     try:
         df2 = pd.read_excel("/root/voting_bot/reg_lab_staff.xlsx")
         for _, row in df2.iterrows():
             fio = str(row["ФИО"]).strip()
             dept = str(row["Подразделение"]).strip()
-            if fio and fio not in employees:  # оставляем первое вхождение
-                employees[fio] = dept
+            if fio and fio not in all_emps:
+                all_emps[fio] = dept
     except Exception as e:
         print("⚠️ Ошибка загрузки reg_lab_staff.xlsx:", e)
 
-    return employees
+    return all_emps
 
-EMPLOYEES = load_all_employees()
-print(f"✅ Загружено {len(EMPLOYEES)} сотрудников из ОБЕИХ баз")
+ALL_EMPLOYEES = load_all_employees_for_nominees()
+print(f"🌍 Общая база (для номинации): {len(ALL_EMPLOYEES)} сотрудников")
+
 
 @app.post("/api/votes")
 async def submit_vote(vote: Vote):
     try:
         fio = vote.fio.strip()
         dept = vote.department.strip()
+        nominee = vote.nominee.strip()
 
-        # Проверка: есть ли ФИО в Excel
-        if fio not in EMPLOYEES:
-            raise HTTPException(status_code=400, detail=f"ФИО '{fio}' не найдено в списке сотрудников!")
+        # 🔐 Проверка: голосующий — только из ЛОКАЛЬНОЙ базы
+        if fio not in LOCAL_EMPLOYEES:
+            raise HTTPException(status_code=400, detail=f"ФИО '{fio}' не найдено в списке сотрудников Prosoft.")
 
-        # Проверка: совпадает ли отдел
-        correct_dept = EMPLOYEES[fio]
+        correct_dept = LOCAL_EMPLOYEES[fio]
         if correct_dept.lower() != dept.lower():
             raise HTTPException(
                 status_code=400,
                 detail=f"Отдел не совпадает с данными в системе ({correct_dept})."
             )
+
+        # 🎯 Номинант — НЕ проверяется на принадлежность. Принимаем любое ФИО.
+        # (Опционально: можно добавить soft-check для логгирования)
+        if nominee not in ALL_EMPLOYEES:
+            print(f"ℹ️ Нестандартный номинант: '{nominee}' не найден ни в одном Excel. Принимаем голос.")
 
         # Сохранение голоса
         vote_data = vote.dict()
@@ -103,7 +124,7 @@ async def submit_vote(vote: Vote):
         asyncio.create_task(bot.send_message(
             vote.chat_id,
             f"<b>Спасибо, {vote.fio}!</b>\n"
-            f"Ваш голос за {vote.nominee} учтён.\n\n"
+            f"Ваш голос за <b>{vote.nominee}</b> учтён.\n\n"
             f"Увидимся 26 декабря — на юбилее в MTS Live Hall.\n"
             f"Именно там мы назовём имена тех, кто помогает нам расти.",
             parse_mode="HTML"
@@ -114,14 +135,13 @@ async def submit_vote(vote: Vote):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Ошибка при сохранении голоса: {str(e)}")
 
 
 @app.post("/api/validate")
 async def validate_user(payload: dict):
     """
-    Проверяет ФИО и отдел по Excel.
-    Ожидаемый payload: { "fio": "Иванов Иван Иванович", "department": "Отдел" }
+    Проверяет ФИО и отдел ТОЛЬКО по локальной базе (prosoft_staff.xlsx).
     """
     try:
         fio = payload.get("fio", "").strip()
@@ -129,16 +149,14 @@ async def validate_user(payload: dict):
         if not fio or not dept:
             return {"valid": False}
 
-        if fio not in EMPLOYEES:
+        if fio not in LOCAL_EMPLOYEES:
             return {"valid": False}
 
-        correct_dept = EMPLOYEES[fio]
-        if correct_dept.lower() != dept.lower():
-            return {"valid": False}
-
-        return {"valid": True}
+        correct_dept = LOCAL_EMPLOYEES[fio]
+        return {"valid": correct_dept.lower() == dept.lower()}
     except Exception as e:
-        return {"valid": False, "error": str(e)}
+        print("❌ Ошибка валидации:", e)
+        return {"valid": False}
 
 
 @app.get("/api/votes")
@@ -148,18 +166,25 @@ async def get_votes():
             return json.load(f)
     return []
 
+
 @app.get("/api/employees")
 async def get_employees(department: str = None):
+    """
+    Возвращает список ФИО для выбора номинанта — из ОБЩЕЙ базы.
+    """
     if department:
-        filtered = [fio for fio, dept in EMPLOYEES.items() if dept.lower() == department.lower()]
+        filtered = [
+            fio for fio, dept in ALL_EMPLOYEES.items()
+            if dept.lower() == department.lower()
+        ]
     else:
-        filtered = list(EMPLOYEES.keys())
+        filtered = list(ALL_EMPLOYEES.keys())
     return {"employees": filtered}
+
 
 @app.get("/api/departments")
 async def get_departments():
-    # Берём уникальные отделы из Excel
-    departments = list(set(EMPLOYEES.values()))
+    departments = list(set(ALL_EMPLOYEES.values()))
     departments.sort()
     return {"departments": departments}
 
@@ -183,28 +208,24 @@ async def start(message: types.Message):
         parse_mode="HTML"
     )
 
-async def start_bot():
-    await dp.start_polling()
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_webapp():
     with open("/root/voting_bot/index.html", "r", encoding="utf-8") as f:
         return f.read()
 
+
 if __name__ == "__main__":
-    import asyncio
     import logging
     import uvicorn
 
     logging.basicConfig(level=logging.INFO)
 
     async def main():
-        # Запускаем polling бота
         logging.info("🚀 Запуск Telegram-бота...")
         bot_task = asyncio.create_task(dp.start_polling())
 
-        # Запускаем FastAPI в том же loop'е
-        logging.info("🌐 Запуск FastAPI...")
+        logging.info("🌐 Запуск FastAPI на порту 8000...")
         config = uvicorn.Config(app, host="0.0.0.0", port=8000, loop="asyncio")
         server = uvicorn.Server(config)
         api_task = asyncio.create_task(server.serve())
@@ -212,7 +233,7 @@ if __name__ == "__main__":
         try:
             await asyncio.gather(bot_task, api_task)
         except KeyboardInterrupt:
-            logging.info("🛑 Остановка по сигналу...")
+            logging.info("🛑 Остановка бота и API...")
             bot_task.cancel()
             api_task.cancel()
 
