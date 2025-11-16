@@ -390,10 +390,19 @@
         if (res.ok) {
           step2.classList.remove("active");
           step3.classList.add("active");
-          // ✅ Ничего не закрываем — пользователь сам выходит
+          document.querySelector("#step3 h1").textContent = "Спасибо!";
+          document.querySelector("#step3 p").textContent = "Ваш голос учтён ✅";
         } else {
           const error = await res.json().catch(() => ({}));
-          alert("❌ " + (error.detail || "Не удалось отправить голос."));
+          if (res.status === 403) {
+            // Уже голосовал — показываем "успех", а не ошибку
+            step2.classList.remove("active");
+            step3.classList.add("active");
+            document.querySelector("#step3 h1").textContent = "Вы уже голосовали!";
+            document.querySelector("#step3 p").textContent = "✅ Ваш голос учтён. Спасибо!";
+          } else {
+            alert("❌ " + (error.detail || "Не удалось отправить голос."));
+          }
         }
       } catch (err) {
         console.error(err);

@@ -161,13 +161,72 @@ async def validate_user(payload: dict):
         print("❌ Ошибка валидации:", e)
         return {"valid": False}
 
+@app.post("/api/votes")
+async def submit_vote(vote: Vote):
+    try:
+        fio = vote.fio.strip()
+        dept = vote.department.strip()
+        nominee = vote.nominee.strip()
+        chat_id = vote.chat_id
 
-@app.get("/api/votes")
-async def get_votes():
-    if os.path.exists(VOTES_FILE):
-        with open(VOTES_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return []
+        # 1. 🔐 Валидация (как и было)
+        if fio not in LOCAL_EMPLOYEES:
+            raise HTTPException(status_code=400, detail=f"ФИО '{fio}' не найдено в списке сотрудников Prosoft.")
+        correct_dept = LOCAL_EMPLOYEES[fio]
+        if correct_dept.lower() != dept.lower():
+            raise HTTPException(
+                status_code=400,
+                detail=f"Отдел не совпадает с данными в системе ({correct_dept})."
+            )
+
+        # 2. 📖 Загружаем существующие голоса
+        votes = {}
+        if os.path.exists(VOTES_FILE):
+            try:
+                with open(VOTES_FILE, "r", encoding="utf-8") as f:
+                    votes = json.load(f)
+            except json.JSONDecodeError:
+                print("⚠️ votes.json повреждён — создаём новый")
+                votes = {}
+
+        # 3. ⚠️ Проверка: уже голосовал по chat_id?
+        if str(chat_id) in votes:  # ← ключ — строка chat_id (JSON не любит int-ключи)
+            existing = votes[str(chat_id)]
+            raise HTTPException(
+                status_code=403,
+                detail=f"Вы уже проголосовали за {existing['nominee']} ({existing['fio']})."
+            )
+
+        # 4. 🎯 Номинант (без жёсткой привязки)
+        if nominee not in ALL_EMPLOYEES:
+            print(f"ℹ️ Нестандартный номинант: '{nominee}' не найден ни в одном Excel.")
+
+        # 5. ✅ Сохраняем — ключ: str(chat_id)
+        vote_data = vote.dict()
+        vote_data["date"] = datetime.now().isoformat()
+
+        votes[str(chat_id)] = vote_data  # ← безопасно, даже если chat_id = null → "null"
+
+        with open(VOTES_FILE, "w", encoding="utf-8") as f:
+            json.dump(votes, f, ensure_ascii=False, indent=2)
+
+        # 6. 💬 Telegram-уведомление
+        asyncio.create_task(bot.send_message(
+            chat_id,
+            f"<b>Спасибо, {fio}!</b>\n"
+            f"Ваш голос за <b>{nominee}</b> учтён.\n\n"
+            f"Увидимся 26 декабря — на юбилее в MTS Live Hall.\n"
+            f"Именно там мы назовём имена тех, кто помогает нам расти.",
+            parse_mode="HTML"
+        ))
+
+        return {"status": "ok", "message": "Голос сохранён"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка при сохранении голоса: {str(e)}")
+
 
 
 @app.get("/api/employees")
