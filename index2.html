@@ -59,7 +59,6 @@
         0 0 0 1px rgba(65, 160, 240, 0.2);
       backdrop-filter: blur(12px);
       text-align: center;
-      transition: opacity 0.35s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     .screen {
@@ -76,44 +75,49 @@
     .screen h1 {
       font-size: 1.75rem;
       font-weight: 600;
-      color: #5cc4ff;
-      margin-bottom: 18px;
+      color: #4db5ff;
+      margin-bottom: 16px;
     }
 
     .screen p {
-      font-size: 0.95rem;
+      font-size: 1rem;
       color: #c5dfff;
-      margin-bottom: 22px;
+      margin-bottom: 24px;
       line-height: 1.5;
     }
 
     label {
       display: block;
       text-align: left;
-      margin: 14px 0 6px;
-      font-weight: 500;
-      color: #b0d5ff;
-      font-size: 0.95rem;
+      margin: 12px 0 6px;
+      font-weight: 600;
+      color: #ffffff;
+      font-size: 1rem;
     }
 
     input, select {
       width: 100%;
-      padding: 13px 16px;
-      border-radius: 12px;
-      border: 1px solid rgba(65, 160, 240, 0.45);
-      background: rgba(5, 20, 38, 0.8);
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid rgba(77, 181, 255, 0.4);
+      background: rgba(8, 29, 51, 0.85);
       color: #f0f9ff;
       font-size: 15px;
       outline: none;
-      transition: all 0.25s ease;
+      transition: all 0.2s ease;
+    }
+
+    input:focus, select:focus {
+      border-color: #4db5ff;
+      box-shadow: 0 0 0 2px rgba(77, 181, 255, 0.3);
     }
 
     input::placeholder {
-      color: #9fcfff;
+      color: #a0cfff;
     }
 
     select {
-      background-image: url("data:image/svg+xml,%3Csvg width='14' height='14' fill='%23a5d3ff' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 6l4 4 4-4z'/%3E%3C/svg%3E");
+      background-image: url("data:image/svg+xml,%3Csvg width='14' height='14' fill='%23ffffff' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 6l4 4 4-4z'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
       background-position: right 12px center;
       background-size: 10px;
@@ -128,22 +132,30 @@
       background: linear-gradient(135deg, #4db5ff, #2b97f0);
       color: white;
       font-weight: 600;
-      font-size: 1rem;
+      font-size: 1.05rem;
       border: none;
-      border-radius: 12px;
+      border-radius: 10px;
       cursor: pointer;
-      transition: all 0.25s ease;
+      transition: all 0.2s ease;
+    }
+
+    button:hover:not(:disabled) {
+      background: linear-gradient(135deg, #3a9fd1, #1a7ac5);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(77, 181, 255, 0.35);
     }
 
     button:disabled {
       opacity: 0.6;
       cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
     }
 
     #validationMessage {
-      color: #ff7a7a;
-      font-size: 0.9rem;
-      margin: 4px 0 12px 0;
+      color: #ff6b6b;
+      font-size: 0.95rem;
+      margin: 6px 0 14px 0;
       min-height: 1.4em;
       text-align: center;
     }
@@ -154,9 +166,9 @@
       margin: 8px 0 16px;
       max-height: 180px;
       overflow-y: auto;
-      border-radius: 10px;
-      background: rgba(5, 20, 38, 0.85);
-      border: 1px solid rgba(65, 160, 240, 0.3);
+      border-radius: 8px;
+      background: rgba(8, 29, 51, 0.85);
+      border: 1px solid rgba(77, 181, 255, 0.3);
       display: none;
     }
 
@@ -169,24 +181,15 @@
     }
 
     #nomineeList li:hover {
-      background: rgba(65, 160, 240, 0.2);
-    }
-
-    #nomineeList li + li {
-      border-top: 1px solid rgba(65, 160, 240, 0.1);
+      background: rgba(77, 181, 255, 0.25);
     }
 
     @media (max-width: 480px) {
-      .vote-container {
-        padding: 24px 18px;
-        border-radius: 18px;
-      }
-      .screen h1 {
-        font-size: 1.5rem;
-      }
-      .logo-top, .logo-bottom {
-        width: 140px;
-      }
+      .vote-container { padding: 24px 20px; }
+      .screen h1 { font-size: 1.6rem; }
+      .screen p { font-size: 0.95rem; margin-bottom: 20px; }
+      label { font-size: 0.95rem; }
+      button { font-size: 1rem; }
     }
   </style>
 </head>
@@ -196,30 +199,37 @@
     <div class="vote-container">
       <!-- Шаг 1 -->
       <div id="step1" class="screen active">
-        <h1>Введите ваши данные</h1>
-        <label for="fio">ФИО:</label>
+        <h1>Голосование</h1>
+        <p>Выберите свой отдел и сотрудника, за которого хотите проголосовать.</p>
+
+        <label for="fio">Ваше ФИО:</label>
         <input type="text" id="fio" placeholder="Иванов Иван Иванович" required />
-        <label for="department">Отдел:</label>
+
+        <label for="department">Ваш отдел:</label>
         <select id="department" required>
           <option value="" disabled selected>Загрузка отделов...</option>
         </select>
+
         <div id="validationMessage"></div>
         <button id="nextStep1" disabled>Далее</button>
       </div>
 
       <!-- Шаг 2 -->
       <div id="step2" class="screen">
-        <h1>Выберите сотрудника для номинации</h1>
-        <label for="nomineeInput">Сотрудник:</label>
+        <h1>Голосование</h1>
+        <p>Выберите своего кандидата</p>
+
+        <label for="nomineeInput">Кого вы номинируете:</label>
         <input type="text" id="nomineeInput" placeholder="Введите ФИО сотрудника" disabled autocomplete="off" />
         <ul id="nomineeList"></ul>
+
         <button id="submitVote" disabled>Отправить голос</button>
       </div>
 
       <!-- Шаг 3 -->
       <div id="step3" class="screen">
         <h1>Спасибо!</h1>
-        <p>Ваш голос успешно зарегистрирован</p>
+        <p>Ваш голос учтён ✅</p>
       </div>
     </div>
     <img src="https://www.prosoft-people.online/static/logo_bottom.png" class="logo-bottom" alt="Прософт Системы">
@@ -233,7 +243,6 @@
       tg.disableVerticalSwipes();
     }
 
-    // === Логика голосования (не менялась) ===
     const step1 = document.getElementById("step1");
     const step2 = document.getElementById("step2");
     const step3 = document.getElementById("step3");
@@ -390,10 +399,17 @@
         if (res.ok) {
           step2.classList.remove("active");
           step3.classList.add("active");
-          // ✅ Ничего не закрываем — пользователь сам выходит
         } else {
           const error = await res.json().catch(() => ({}));
-          alert("❌ " + (error.detail || "Не удалось отправить голос."));
+          if (res.status === 403) {
+            // Уже голосовал → показываем успех
+            step2.classList.remove("active");
+            step3.classList.add("active");
+            document.querySelector("#step3 h1").textContent = "Вы уже голосовали!";
+            document.querySelector("#step3 p").textContent = "Нельзя голосовать больше одного раза";
+          } else {
+            alert("❌ " + (error.detail || "Не удалось отправить голос."));
+          }
         }
       } catch (err) {
         console.error(err);

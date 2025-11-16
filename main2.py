@@ -93,51 +93,68 @@ async def submit_vote(vote: Vote):
         fio = vote.fio.strip()
         dept = vote.department.strip()
         nominee = vote.nominee.strip()
+        chat_id = vote.chat_id  # Может быть None, если WebApp открыт не из бота
 
-        # 🔐 Проверка: голосующий — только из ЛОКАЛЬНОЙ базы (reg_lab)
+        # 🔐 Валидация
         if fio not in LOCAL_EMPLOYEES:
-            raise HTTPException(status_code=400, detail=f"ФИО '{fio}' не найдено в списке сотрудников RegLab.")
+            raise HTTPException(status_code=400, detail="ФИО не найдено в списке сотрудников.")
+        if LOCAL_EMPLOYEES[fio].lower() != dept.lower():
+            raise HTTPException(status_code=400, detail="Отдел не совпадает с данными в системе.")
 
-        correct_dept = LOCAL_EMPLOYEES[fio]
-        if correct_dept.lower() != dept.lower():
+        # 📖 Загрузка голосов
+        votes = {}
+        if os.path.exists(VOTES_FILE):
+            try:
+                with open(VOTES_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    # Поддержка старого формата (массив)
+                    if isinstance(data, list):
+                        votes = {str(v.get("chat_id")): v for v in data if v.get("chat_id")}
+                    else:
+                        votes = data
+            except Exception as e:
+                print(f"⚠️ Ошибка чтения {VOTES_FILE}: {e}")
+                votes = {}
+
+        # 🔒 Проверка уникальности — даже если chat_id = None → по fio (защита от ручных запросов)
+        key = str(chat_id) if chat_id is not None else f"manual_{fio}"
+        if key in votes:
+            existing = votes[key]
             raise HTTPException(
-                status_code=400,
-                detail=f"Отдел не совпадает с данными в системе ({correct_dept})."
+                status_code=403,
+                detail=f"Вы уже голосовали за {existing['nominee']}."
             )
 
-        # 🎯 Номинант — НЕ проверяется на принадлежность
-        if nominee not in ALL_EMPLOYEES:
-            print(f"ℹ️ Нестандартный номинант: '{nominee}' не найден ни в одном Excel. Принимаем голос.")
-
-        # Сохранение голоса
+        # ✅ Сохранение
         vote_data = vote.dict()
         vote_data["date"] = datetime.now().isoformat()
 
-        votes = []
-        if os.path.exists(VOTES_FILE):
-            with open(VOTES_FILE, "r", encoding="utf-8") as f:
-                votes = json.load(f)
+        votes[key] = vote_data
 
-        votes.append(vote_data)
-        with open(VOTES_FILE, "w", encoding="utf-8") as f:
-            json.dump(votes, f, ensure_ascii=False, indent=2)
+        # Атомарная запись (защита от повреждения)
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode="w", dir=".", delete=False, encoding="utf-8") as tmp:
+            json.dump(votes, tmp, ensure_ascii=False, indent=2)
+            tmp_path = tmp.name
+        os.replace(tmp_path, VOTES_FILE)
 
-        # Сообщение в Telegram
-        asyncio.create_task(bot.send_message(
-            vote.chat_id,
-            f"<b>Спасибо, {vote.fio}!</b>\n"
-            f"Ваш голос за <b>{vote.nominee}</b> учтён.\n\n"
-            f"Увидимся 26 декабря — на юбилее в MTS Live Hall.\n"
-            f"Именно там мы назовём имена тех, кто помогает нам расти.",
-            parse_mode="HTML"
-        ))
+        # 📩 Уведомление (только если chat_id есть)
+        if chat_id:
+            asyncio.create_task(bot.send_message(
+                chat_id,
+                f"<b>Спасибо, {fio}!</b>\n"
+                f"Ваш голос за <b>{nominee}</b> учтён.\n\n"
+                f"Увидимся 26 декабря — на юбилее в MTS Live Hall.",
+                parse_mode="HTML"
+            ))
 
         return {"status": "ok", "message": "Голос сохранён"}
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка при сохранении голоса: {str(e)}")
+        print("❌ Ошибка в /api/votes:", repr(e))
+        raise HTTPException(status_code=500, detail="Ошибка сервера. Попробуйте позже.")
 
 
 @app.post("/api/validate")
