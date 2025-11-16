@@ -93,52 +93,48 @@ async def submit_vote(vote: Vote):
         fio = vote.fio.strip()
         dept = vote.department.strip()
         nominee = vote.nominee.strip()
-        chat_id = vote.chat_id  # Может быть None, если WebApp открыт не из бота
+        chat_id = vote.chat_id
 
-        # 🔐 Валидация
+        # 🔐 1. Валидация: ФИО+отдел должны совпадать с Excel (уже защищает от подмены)
         if fio not in LOCAL_EMPLOYEES:
             raise HTTPException(status_code=400, detail="ФИО не найдено в списке сотрудников.")
         if LOCAL_EMPLOYEES[fio].lower() != dept.lower():
             raise HTTPException(status_code=400, detail="Отдел не совпадает с данными в системе.")
 
-        # 📖 Загрузка голосов
+        # 📖 2. Загрузка голосов
         votes = {}
         if os.path.exists(VOTES_FILE):
-            try:
-                with open(VOTES_FILE, "r", encoding="utf-8") as f:
+            with open(VOTES_FILE, "r", encoding="utf-8") as f:
+                fcntl.flock(f.fileno(), fcntl.LOCK_SH)
+                try:
                     data = json.load(f)
-                    # Поддержка старого формата (массив)
                     if isinstance(data, list):
+                        # Миграция: используем chat_id как ключ (str)
                         votes = {str(v.get("chat_id")): v for v in data if v.get("chat_id")}
                     else:
                         votes = data
-            except Exception as e:
-                print(f"⚠️ Ошибка чтения {VOTES_FILE}: {e}")
-                votes = {}
+                except Exception as e:
+                    print(f"⚠️ Ошибка парсинга {VOTES_FILE}: {e}")
+                finally:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
-        # 🔒 Проверка уникальности — даже если chat_id = None → по fio (защита от ручных запросов)
-        key = str(chat_id) if chat_id is not None else f"manual_{fio}"
-        if key in votes:
-            existing = votes[key]
+        # 🔒 3. Проверка: голосовал ли ЭТОТ chat_id?
+        chat_key = str(chat_id) if chat_id is not None else f"manual_{fio}"
+        if chat_key in votes:
+            existing = votes[chat_key]
             raise HTTPException(
                 status_code=403,
                 detail=f"Вы уже голосовали за {existing['nominee']}."
             )
 
-        # ✅ Сохранение
+        # ✅ 4. Сохраняем ПО CHAT_ID — но с правильным fio (уже проверено!)
         vote_data = vote.dict()
         vote_data["date"] = datetime.now().isoformat()
+        votes[chat_key] = vote_data  # ← ключ — chat_id (как и было), но fio — только валидный
 
-        votes[key] = vote_data
+        safe_save_votes(votes, VOTES_FILE)
 
-        # Атомарная запись (защита от повреждения)
-        import tempfile
-        with tempfile.NamedTemporaryFile(mode="w", dir=".", delete=False, encoding="utf-8") as tmp:
-            json.dump(votes, tmp, ensure_ascii=False, indent=2)
-            tmp_path = tmp.name
-        os.replace(tmp_path, VOTES_FILE)
-
-        # 📩 Уведомление (только если chat_id есть)
+        # 📩 5. Уведомление
         if chat_id:
             asyncio.create_task(bot.send_message(
                 chat_id,
@@ -154,8 +150,7 @@ async def submit_vote(vote: Vote):
         raise
     except Exception as e:
         print("❌ Ошибка в /api/votes:", repr(e))
-        raise HTTPException(status_code=500, detail="Ошибка сервера. Попробуйте позже.")
-
+        raise HTTPException(status_code=500, detail="Ошибка сервера.")
 
 @app.post("/api/validate")
 async def validate_user(payload: dict):
