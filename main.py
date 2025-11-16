@@ -125,20 +125,21 @@ async def submit_vote(vote: Vote):
         nominee = vote.nominee.strip()
         chat_id = vote.chat_id
 
-        # 🔐 Валидация
+        # 🔐 1. Валидация: ФИО+отдел должны совпадать с Excel (уже защищает от подмены)
         if fio not in LOCAL_EMPLOYEES:
             raise HTTPException(status_code=400, detail="ФИО не найдено в списке сотрудников.")
         if LOCAL_EMPLOYEES[fio].lower() != dept.lower():
             raise HTTPException(status_code=400, detail="Отдел не совпадает с данными в системе.")
 
-        # 📖 Загрузка голосов с блокировкой
+        # 📖 2. Загрузка голосов
         votes = {}
         if os.path.exists(VOTES_FILE):
             with open(VOTES_FILE, "r", encoding="utf-8") as f:
-                fcntl.flock(f.fileno(), fcntl.LOCK_SH)  # shared lock для чтения
+                fcntl.flock(f.fileno(), fcntl.LOCK_SH)
                 try:
                     data = json.load(f)
                     if isinstance(data, list):
+                        # Миграция: используем chat_id как ключ (str)
                         votes = {str(v.get("chat_id")): v for v in data if v.get("chat_id")}
                     else:
                         votes = data
@@ -147,24 +148,23 @@ async def submit_vote(vote: Vote):
                 finally:
                     fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
-        # 🔒 Проверка уникальности
-        key = str(chat_id) if chat_id is not None else f"manual_{fio}"
-        if key in votes:
-            existing = votes[key]
+        # 🔒 3. Проверка: голосовал ли ЭТОТ chat_id?
+        chat_key = str(chat_id) if chat_id is not None else f"manual_{fio}"
+        if chat_key in votes:
+            existing = votes[chat_key]
             raise HTTPException(
                 status_code=403,
                 detail=f"Вы уже голосовали за {existing['nominee']}."
             )
 
-        # ✅ Подготавливаем данные
+        # ✅ 4. Сохраняем ПО CHAT_ID — но с правильным fio (уже проверено!)
         vote_data = vote.dict()
         vote_data["date"] = datetime.now().isoformat()
-        votes[key] = vote_data
+        votes[chat_key] = vote_data  # ← ключ — chat_id (как и было), но fio — только валидный
 
-        # 🔐 Атомарное сохранение
         safe_save_votes(votes, VOTES_FILE)
 
-        # 📩 Telegram-уведомление
+        # 📩 5. Уведомление
         if chat_id:
             asyncio.create_task(bot.send_message(
                 chat_id,
@@ -179,9 +179,8 @@ async def submit_vote(vote: Vote):
     except HTTPException:
         raise
     except Exception as e:
-        print("❌ Критическая ошибка в /api/votes:", repr(e))
-        raise HTTPException(status_code=500, detail="Ошибка сервера. Попробуйте позже.")
-
+        print("❌ Ошибка в /api/votes:", repr(e))
+        raise HTTPException(status_code=500, detail="Ошибка сервера.")
 
 @app.get("/api/employees")
 async def get_employees(department: str = None):
