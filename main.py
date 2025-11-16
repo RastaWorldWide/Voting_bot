@@ -87,60 +87,6 @@ ALL_EMPLOYEES = load_all_employees_for_nominees()
 print(f"🌍 Общая база (для номинации): {len(ALL_EMPLOYEES)} сотрудников")
 
 
-@app.post("/api/votes")
-async def submit_vote(vote: Vote):
-    try:
-        fio = vote.fio.strip()
-        dept = vote.department.strip()
-        nominee = vote.nominee.strip()
-
-        # 🔐 Проверка: голосующий — только из ЛОКАЛЬНОЙ базы
-        if fio not in LOCAL_EMPLOYEES:
-            raise HTTPException(status_code=400, detail=f"ФИО '{fio}' не найдено в списке сотрудников Prosoft.")
-
-        correct_dept = LOCAL_EMPLOYEES[fio]
-        if correct_dept.lower() != dept.lower():
-            raise HTTPException(
-                status_code=400,
-                detail=f"Отдел не совпадает с данными в системе ({correct_dept})."
-            )
-
-        # 🎯 Номинант — НЕ проверяется на принадлежность. Принимаем любое ФИО.
-        # (Опционально: можно добавить soft-check для логгирования)
-        if nominee not in ALL_EMPLOYEES:
-            print(f"ℹ️ Нестандартный номинант: '{nominee}' не найден ни в одном Excel. Принимаем голос.")
-
-        # Сохранение голоса
-        vote_data = vote.dict()
-        vote_data["date"] = datetime.now().isoformat()
-
-        votes = []
-        if os.path.exists(VOTES_FILE):
-            with open(VOTES_FILE, "r", encoding="utf-8") as f:
-                votes = json.load(f)
-
-        votes.append(vote_data)
-        with open(VOTES_FILE, "w", encoding="utf-8") as f:
-            json.dump(votes, f, ensure_ascii=False, indent=2)
-
-        # Сообщение в Telegram
-        asyncio.create_task(bot.send_message(
-            vote.chat_id,
-            f"<b>Спасибо, {vote.fio}!</b>\n"
-            f"Ваш голос за <b>{vote.nominee}</b> учтён.\n\n"
-            f"Увидимся 26 декабря — на юбилее в MTS Live Hall.\n"
-            f"Именно там мы назовём имена тех, кто помогает нам расти.",
-            parse_mode="HTML"
-        ))
-
-        return {"status": "ok", "message": "Голос сохранён"}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка при сохранении голоса: {str(e)}")
-
-
 @app.post("/api/validate")
 async def validate_user(payload: dict):
     """
@@ -167,67 +113,68 @@ async def submit_vote(vote: Vote):
         fio = vote.fio.strip()
         dept = vote.department.strip()
         nominee = vote.nominee.strip()
-        chat_id = vote.chat_id
+        chat_id = vote.chat_id  # Может быть None, если WebApp открыт не из бота
 
-        # 1. 🔐 Валидация (как и было)
+        # 🔐 Валидация
         if fio not in LOCAL_EMPLOYEES:
-            raise HTTPException(status_code=400, detail=f"ФИО '{fio}' не найдено в списке сотрудников Prosoft.")
-        correct_dept = LOCAL_EMPLOYEES[fio]
-        if correct_dept.lower() != dept.lower():
-            raise HTTPException(
-                status_code=400,
-                detail=f"Отдел не совпадает с данными в системе ({correct_dept})."
-            )
+            raise HTTPException(status_code=400, detail="ФИО не найдено в списке сотрудников.")
+        if LOCAL_EMPLOYEES[fio].lower() != dept.lower():
+            raise HTTPException(status_code=400, detail="Отдел не совпадает с данными в системе.")
 
-        # 2. 📖 Загружаем существующие голоса
+        # 📖 Загрузка голосов
         votes = {}
         if os.path.exists(VOTES_FILE):
             try:
                 with open(VOTES_FILE, "r", encoding="utf-8") as f:
-                    votes = json.load(f)
-            except json.JSONDecodeError:
-                print("⚠️ votes.json повреждён — создаём новый")
+                    data = json.load(f)
+                    # Поддержка старого формата (массив)
+                    if isinstance(data, list):
+                        votes = {str(v.get("chat_id")): v for v in data if v.get("chat_id")}
+                    else:
+                        votes = data
+            except Exception as e:
+                print(f"⚠️ Ошибка чтения {VOTES_FILE}: {e}")
                 votes = {}
 
-        # 3. ⚠️ Проверка: уже голосовал по chat_id?
-        if str(chat_id) in votes:  # ← ключ — строка chat_id (JSON не любит int-ключи)
-            existing = votes[str(chat_id)]
+        # 🔒 Проверка уникальности — даже если chat_id = None → по fio (защита от ручных запросов)
+        key = str(chat_id) if chat_id is not None else f"manual_{fio}"
+        if key in votes:
+            existing = votes[key]
             raise HTTPException(
                 status_code=403,
-                detail=f"Вы уже проголосовали за {existing['nominee']} ({existing['fio']})."
+                detail=f"Вы уже голосовали за {existing['nominee']}."
             )
 
-        # 4. 🎯 Номинант (без жёсткой привязки)
-        if nominee not in ALL_EMPLOYEES:
-            print(f"ℹ️ Нестандартный номинант: '{nominee}' не найден ни в одном Excel.")
-
-        # 5. ✅ Сохраняем — ключ: str(chat_id)
+        # ✅ Сохранение
         vote_data = vote.dict()
         vote_data["date"] = datetime.now().isoformat()
 
-        votes[str(chat_id)] = vote_data  # ← безопасно, даже если chat_id = null → "null"
+        votes[key] = vote_data
 
-        with open(VOTES_FILE, "w", encoding="utf-8") as f:
-            json.dump(votes, f, ensure_ascii=False, indent=2)
+        # Атомарная запись (защита от повреждения)
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode="w", dir=".", delete=False, encoding="utf-8") as tmp:
+            json.dump(votes, tmp, ensure_ascii=False, indent=2)
+            tmp_path = tmp.name
+        os.replace(tmp_path, VOTES_FILE)
 
-        # 6. 💬 Telegram-уведомление
-        asyncio.create_task(bot.send_message(
-            chat_id,
-            f"<b>Спасибо, {fio}!</b>\n"
-            f"Ваш голос за <b>{nominee}</b> учтён.\n\n"
-            f"Увидимся 26 декабря — на юбилее в MTS Live Hall.\n"
-            f"Именно там мы назовём имена тех, кто помогает нам расти.",
-            parse_mode="HTML"
-        ))
+        # 📩 Уведомление (только если chat_id есть)
+        if chat_id:
+            asyncio.create_task(bot.send_message(
+                chat_id,
+                f"<b>Спасибо, {fio}!</b>\n"
+                f"Ваш голос за <b>{nominee}</b> учтён.\n\n"
+                f"Увидимся 26 декабря — на юбилее в MTS Live Hall.",
+                parse_mode="HTML"
+            ))
 
         return {"status": "ok", "message": "Голос сохранён"}
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Ошибка при сохранении голоса: {str(e)}")
-
-
+        print("❌ Ошибка в /api/votes:", repr(e))
+        raise HTTPException(status_code=500, detail="Ошибка сервера. Попробуйте позже.")
 
 @app.get("/api/employees")
 async def get_employees(department: str = None):
