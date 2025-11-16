@@ -391,7 +391,7 @@
           step2.classList.remove("active");
           step3.classList.add("active");
           document.querySelector("#step3 h1").textContent = "Спасибо!";
-          document.querySelector("#step3 p").textContent = "Ваш голос учтён ✅";
+          document.querySelector("#step3 p").textContent = "Ваш голос успешно зарегистрирован";
         } else {
           const error = await res.json().catch(() => ({}));
           if (res.status === 403) {
@@ -399,7 +399,7 @@
             step2.classList.remove("active");
             step3.classList.add("active");
             document.querySelector("#step3 h1").textContent = "Вы уже голосовали!";
-            document.querySelector("#step3 p").textContent = "✅ Ваш голос учтён. Спасибо!";
+            document.querySelector("#step3 p").textContent = "Нельзя голосовать больше одного раза";
           } else {
             alert("❌ " + (error.detail || "Не удалось отправить голос."));
           }
