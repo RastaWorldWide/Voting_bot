@@ -1,7 +1,8 @@
 import os
 import json
-import fcntl
 import asyncio
+import fcntl
+import tempfile
 from datetime import datetime
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,6 +31,7 @@ app.add_middleware(
 )
 
 VOTES_FILE = "votes2.json"
+BINDINGS_FILE = "user_bindings2.json"  # ← отдельный файл для второго бота
 
 
 class Vote(BaseModel):
@@ -39,9 +41,9 @@ class Vote(BaseModel):
     chat_id: int
 
 
-# 🔐 ЛОКАЛЬНАЯ база — только для валидации (вход разрешён ТОЛЬКО этим сотрудникам)
+# 🔐 ЛОКАЛЬНАЯ база — ТОЛЬКО reg_lab_staff.xlsx
 def load_local_employees():
-    df = pd.read_excel("/root/voting_bot/reg_lab_staff.xlsx")  # ← ВАЖНО: reg_lab_staff.xlsx
+    df = pd.read_excel("/root/voting_bot/reg_lab_staff.xlsx")
     employees = {}
     for _, row in df.iterrows():
         fio = str(row["ФИО"]).strip()
@@ -51,13 +53,10 @@ def load_local_employees():
     return employees
 
 LOCAL_EMPLOYEES = load_local_employees()
-print(f"✅ Локальная база (для входа): {len(LOCAL_EMPLOYEES)} сотрудников")
-
 LOCAL_DEPARTMENTS = sorted(set(LOCAL_EMPLOYEES.values()))
-print(f"✅ Локальная база (RegLab): {len(LOCAL_EMPLOYEES)} сотрудников, {len(LOCAL_DEPARTMENTS)} отделов")
 
 
-# 🌐 ОБЩАЯ база — для отображения кандидатов (все из обоих Excel)
+# 🌐 ОБЩАЯ база — все сотрудники (для номинации)
 def load_all_employees_for_nominees():
     all_emps = {}
     # 1. Основной штат
@@ -85,9 +84,69 @@ def load_all_employees_for_nominees():
     return all_emps
 
 ALL_EMPLOYEES = load_all_employees_for_nominees()
-print(f"🌍 Общая база (для номинации): {len(ALL_EMPLOYEES)} сотрудников")
 
 
+# 🔒 Вспомогательные функции
+def load_bindings():
+    if os.path.exists(BINDINGS_FILE):
+        try:
+            with open(BINDINGS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            return {}
+    return {}
+
+def save_bindings(bindings):
+    with tempfile.NamedTemporaryFile(mode="w", dir=".", delete=False, encoding="utf-8") as tmp:
+        json.dump(bindings, tmp, ensure_ascii=False, indent=2)
+        tmp_path = tmp.name
+    os.replace(tmp_path, BINDINGS_FILE)
+
+def safe_save_votes(votes_dict: dict, filepath: str = VOTES_FILE):
+    dir_path = os.path.dirname(filepath) or "."
+    with tempfile.NamedTemporaryFile(mode="w", dir=dir_path, delete=False, encoding="utf-8") as tmp:
+        json.dump(votes_dict, tmp, ensure_ascii=False, indent=2)
+        tmp_path = tmp.name
+    with open(filepath, "a+") as lock_file:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        try:
+            os.replace(tmp_path, filepath)
+        finally:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+
+# ✅ /api/validate — фиксирует chat_id ↔ fio (только из reg_lab)
+@app.post("/api/validate")
+async def validate_user(payload: dict):
+    try:
+        fio = payload.get("fio", "").strip()
+        dept = payload.get("department", "").strip()
+        chat_id = payload.get("chat_id")
+
+        if not fio or not dept or not chat_id:
+            return {"valid": False}
+
+        # 1. Валидация по reg_lab_staff.xlsx
+        if fio not in LOCAL_EMPLOYEES or LOCAL_EMPLOYEES[fio].lower() != dept.lower():
+            return {"valid": False}
+
+        # 2. Привязка
+        bindings = load_bindings()
+        chat_key = str(chat_id)
+
+        if chat_key in bindings:
+            return {"valid": bindings[chat_key] == fio}
+
+        bindings[chat_key] = fio
+        save_bindings(bindings)
+        return {"valid": True}
+
+    except Exception as e:
+        print("❌ Ошибка в /api/validate (bot2):", e)
+        return {"valid": False}
+
+
+# ✅ /api/votes — проверяет привязку + уникальность по chat_id
 @app.post("/api/votes")
 async def submit_vote(vote: Vote):
     try:
@@ -96,13 +155,19 @@ async def submit_vote(vote: Vote):
         nominee = vote.nominee.strip()
         chat_id = vote.chat_id
 
-        # 🔐 1. Валидация: ФИО+отдел должны совпадать с Excel (уже защищает от подмены)
-        if fio not in LOCAL_EMPLOYEES:
-            raise HTTPException(status_code=400, detail="ФИО не найдено в списке сотрудников.")
-        if LOCAL_EMPLOYEES[fio].lower() != dept.lower():
-            raise HTTPException(status_code=400, detail="Отдел не совпадает с данными в системе.")
+        # 1. Проверка привязки
+        bindings = load_bindings()
+        chat_key = str(chat_id)
+        if chat_key in bindings and bindings[chat_key] != fio:
+            raise HTTPException(400, "Вы не можете голосовать за другого человека.")
 
-        # 📖 2. Загрузка голосов
+        # 2. Валидация по Excel
+        if fio not in LOCAL_EMPLOYEES:
+            raise HTTPException(400, "ФИО не найдено в списке сотрудников.")
+        if LOCAL_EMPLOYEES[fio].lower() != dept.lower():
+            raise HTTPException(400, "Отдел не совпадает с данными в системе.")
+
+        # 3. Уникальность
         votes = {}
         if os.path.exists(VOTES_FILE):
             with open(VOTES_FILE, "r", encoding="utf-8") as f:
@@ -110,7 +175,6 @@ async def submit_vote(vote: Vote):
                 try:
                     data = json.load(f)
                     if isinstance(data, list):
-                        # Миграция: используем chat_id как ключ (str)
                         votes = {str(v.get("chat_id")): v for v in data if v.get("chat_id")}
                     else:
                         votes = data
@@ -119,23 +183,17 @@ async def submit_vote(vote: Vote):
                 finally:
                     fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
-        # 🔒 3. Проверка: голосовал ли ЭТОТ chat_id?
-        chat_key = str(chat_id) if chat_id is not None else f"manual_{fio}"
         if chat_key in votes:
             existing = votes[chat_key]
-            raise HTTPException(
-                status_code=403,
-                detail=f"Вы уже голосовали за {existing['nominee']}."
-            )
+            raise HTTPException(403, f"Вы уже голосовали за {existing['nominee']}.")
 
-        # ✅ 4. Сохраняем ПО CHAT_ID — но с правильным fio (уже проверено!)
+        # 4. Сохранение
         vote_data = vote.dict()
         vote_data["date"] = datetime.now().isoformat()
-        votes[chat_key] = vote_data  # ← ключ — chat_id (как и было), но fio — только валидный
-
+        votes[chat_key] = vote_data
         safe_save_votes(votes, VOTES_FILE)
 
-        # 📩 5. Уведомление
+        # 5. Уведомление
         if chat_id:
             asyncio.create_task(bot.send_message(
                 chat_id,
@@ -150,48 +208,14 @@ async def submit_vote(vote: Vote):
     except HTTPException:
         raise
     except Exception as e:
-        print("❌ Ошибка в /api/votes:", repr(e))
+        print("❌ Ошибка в /api/votes (bot2):", repr(e))
         raise HTTPException(status_code=500, detail="Ошибка сервера.")
-
-@app.post("/api/validate")
-async def validate_user(payload: dict):
-    """
-    Проверяет ФИО и отдел ТОЛЬКО по локальной базе (reg_lab_staff.xlsx).
-    """
-    try:
-        fio = payload.get("fio", "").strip()
-        dept = payload.get("department", "").strip()
-        if not fio or not dept:
-            return {"valid": False}
-
-        if fio not in LOCAL_EMPLOYEES:
-            return {"valid": False}
-
-        correct_dept = LOCAL_EMPLOYEES[fio]
-        return {"valid": correct_dept.lower() == dept.lower()}
-    except Exception as e:
-        print("❌ Ошибка валидации:", e)
-        return {"valid": False}
-
-
-@app.get("/api/votes")
-async def get_votes():
-    if os.path.exists(VOTES_FILE):
-        with open(VOTES_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return []
 
 
 @app.get("/api/employees")
 async def get_employees(department: str = None):
-    """
-    Возвращает список ФИО для выбора номинанта — из ОБЩЕЙ базы.
-    """
     if department:
-        filtered = [
-            fio for fio, dept in ALL_EMPLOYEES.items()
-            if dept.lower() == department.lower()
-        ]
+        filtered = [fio for fio, dept in ALL_EMPLOYEES.items() if dept.lower() == department.lower()]
     else:
         filtered = list(ALL_EMPLOYEES.keys())
     return {"employees": filtered}
@@ -205,12 +229,8 @@ async def get_departments():
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
     user_first_name = message.from_user.first_name or "друг"
-    inline_markup = InlineKeyboardMarkup()
-    inline_markup.add(
-        InlineKeyboardButton(
-            text="🗳 Проголосовать",
-            web_app=WebAppInfo(url="https://www.prosoft-people.online")
-        )
+    inline_markup = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("🗳 Проголосовать", web_app=WebAppInfo(url="https://www.prosoft-people.online"))
     )
     await message.answer(
         f"<b>Привет, {user_first_name}!</b>\n\n"
@@ -228,6 +248,7 @@ async def serve_webapp():
         return f.read()
 
 
+# === Запуск ===
 if __name__ == "__main__":
     import logging
     import uvicorn
@@ -235,7 +256,7 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
 
     async def main():
-        logging.info("🚀 Запуск Telegram-бота (RegLab)...")
+        logging.info("🚀 Запуск Telegram-бота 2 (RegLab)...")
         bot_task = asyncio.create_task(dp.start_polling())
 
         logging.info("🌐 Запуск FastAPI на порту 8001...")
@@ -246,7 +267,7 @@ if __name__ == "__main__":
         try:
             await asyncio.gather(bot_task, api_task)
         except KeyboardInterrupt:
-            logging.info("🛑 Остановка бота и API...")
+            logging.info("🛑 Остановка бота 2 и API...")
             bot_task.cancel()
             api_task.cancel()
 
