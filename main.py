@@ -113,7 +113,6 @@ def safe_save_votes(votes_dict: dict, filepath: str = VOTES_FILE):
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
-# ✅ /api/validate — фиксирует привязку chat_id → fio
 @app.post("/api/validate")
 async def validate_user(payload: dict):
     try:
@@ -132,11 +131,17 @@ async def validate_user(payload: dict):
         bindings = load_bindings()
         chat_key = str(chat_id)
 
-        # 3. Если уже привязан — проверяем соответствие
+        # 3. Если chat_id уже привязан — проверяем соответствие
         if chat_key in bindings:
             return {"valid": bindings[chat_key] == fio}
 
-        # 4. Новый chat_id — привязываем
+        # 4. 🔥 КРИТИЧЕСКАЯ ПРОВЕРКА: не занято ли это ФИО другим chat_id?
+        if fio in bindings.values():
+            # Найти, кто уже привязан
+            existing_chat = next(k for k, v in bindings.items() if v == fio)
+            return {"valid": False}  # ← Запрещаем второму аккаунту использовать это ФИО
+
+        # 5. Новый chat_id + свободное ФИО → привязываем
         bindings[chat_key] = fio
         save_bindings(bindings)
         return {"valid": True}
