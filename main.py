@@ -1,6 +1,7 @@
 import os
 import json
 import asyncio
+import fcntl  # ← для блокировки
 from datetime import datetime
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -38,7 +39,7 @@ class Vote(BaseModel):
     chat_id: int
 
 
-# 🔐 ЛОКАЛЬНАЯ база — только для валидации (вход разрешён ТОЛЬКО этим сотрудникам)
+# 🔐 ЛОКАЛЬНАЯ база — только для валидации
 def load_local_employees():
     df = pd.read_excel("/root/voting_bot/prosoft_staff.xlsx")
     employees = {}
@@ -50,13 +51,10 @@ def load_local_employees():
     return employees
 
 LOCAL_EMPLOYEES = load_local_employees()
-print(f"✅ Локальная база (для входа): {len(LOCAL_EMPLOYEES)} сотрудников")
-
 LOCAL_DEPARTMENTS = sorted(set(LOCAL_EMPLOYEES.values()))
-print(f"✅ Локальная база: {len(LOCAL_EMPLOYEES)} сотрудников, {len(LOCAL_DEPARTMENTS)} отделов")
 
 
-# 🌐 ОБЩАЯ база — для отображения кандидатов (все из обоих Excel)
+# 🌐 ОБЩАЯ база — для кандидатов
 def load_all_employees_for_nominees():
     all_emps = {}
     # 1. Основной штат
@@ -84,28 +82,40 @@ def load_all_employees_for_nominees():
     return all_emps
 
 ALL_EMPLOYEES = load_all_employees_for_nominees()
-print(f"🌍 Общая база (для номинации): {len(ALL_EMPLOYEES)} сотрудников")
+
+
+# 🔒 Надёжное сохранение голосов (атомарно + блокировка)
+def safe_save_votes(votes_dict: dict, filepath: str = VOTES_FILE):
+    dir_path = os.path.dirname(filepath) or "."
+    # 1. Записываем в временный файл
+    with tempfile.NamedTemporaryFile(mode="w", dir=dir_path, delete=False, encoding="utf-8") as tmp:
+        json.dump(votes_dict, tmp, ensure_ascii=False, indent=2)
+        tmp_path = tmp.name
+
+    # 2. Блокируем и атомарно заменяем
+    with open(filepath, "a+") as lock_file:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+        try:
+            os.replace(tmp_path, filepath)
+        finally:
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
 
 
 @app.post("/api/validate")
 async def validate_user(payload: dict):
-    """
-    Проверяет ФИО и отдел ТОЛЬКО по локальной базе (prosoft_staff.xlsx).
-    """
     try:
         fio = payload.get("fio", "").strip()
         dept = payload.get("department", "").strip()
         if not fio or not dept:
             return {"valid": False}
-
         if fio not in LOCAL_EMPLOYEES:
             return {"valid": False}
-
         correct_dept = LOCAL_EMPLOYEES[fio]
         return {"valid": correct_dept.lower() == dept.lower()}
     except Exception as e:
         print("❌ Ошибка валидации:", e)
         return {"valid": False}
+
 
 @app.post("/api/votes")
 async def submit_vote(vote: Vote):
@@ -113,7 +123,7 @@ async def submit_vote(vote: Vote):
         fio = vote.fio.strip()
         dept = vote.department.strip()
         nominee = vote.nominee.strip()
-        chat_id = vote.chat_id  # Может быть None, если WebApp открыт не из бота
+        chat_id = vote.chat_id
 
         # 🔐 Валидация
         if fio not in LOCAL_EMPLOYEES:
@@ -121,22 +131,23 @@ async def submit_vote(vote: Vote):
         if LOCAL_EMPLOYEES[fio].lower() != dept.lower():
             raise HTTPException(status_code=400, detail="Отдел не совпадает с данными в системе.")
 
-        # 📖 Загрузка голосов
+        # 📖 Загрузка голосов с блокировкой
         votes = {}
         if os.path.exists(VOTES_FILE):
-            try:
-                with open(VOTES_FILE, "r", encoding="utf-8") as f:
+            with open(VOTES_FILE, "r", encoding="utf-8") as f:
+                fcntl.flock(f.fileno(), fcntl.LOCK_SH)  # shared lock для чтения
+                try:
                     data = json.load(f)
-                    # Поддержка старого формата (массив)
                     if isinstance(data, list):
                         votes = {str(v.get("chat_id")): v for v in data if v.get("chat_id")}
                     else:
                         votes = data
-            except Exception as e:
-                print(f"⚠️ Ошибка чтения {VOTES_FILE}: {e}")
-                votes = {}
+                except Exception as e:
+                    print(f"⚠️ Ошибка парсинга {VOTES_FILE}: {e}")
+                finally:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
-        # 🔒 Проверка уникальности — даже если chat_id = None → по fio (защита от ручных запросов)
+        # 🔒 Проверка уникальности
         key = str(chat_id) if chat_id is not None else f"manual_{fio}"
         if key in votes:
             existing = votes[key]
@@ -145,20 +156,15 @@ async def submit_vote(vote: Vote):
                 detail=f"Вы уже голосовали за {existing['nominee']}."
             )
 
-        # ✅ Сохранение
+        # ✅ Подготавливаем данные
         vote_data = vote.dict()
         vote_data["date"] = datetime.now().isoformat()
-
         votes[key] = vote_data
 
-        # Атомарная запись (защита от повреждения)
-        import tempfile
-        with tempfile.NamedTemporaryFile(mode="w", dir=".", delete=False, encoding="utf-8") as tmp:
-            json.dump(votes, tmp, ensure_ascii=False, indent=2)
-            tmp_path = tmp.name
-        os.replace(tmp_path, VOTES_FILE)
+        # 🔐 Атомарное сохранение
+        safe_save_votes(votes, VOTES_FILE)
 
-        # 📩 Уведомление (только если chat_id есть)
+        # 📩 Telegram-уведомление
         if chat_id:
             asyncio.create_task(bot.send_message(
                 chat_id,
@@ -173,19 +179,14 @@ async def submit_vote(vote: Vote):
     except HTTPException:
         raise
     except Exception as e:
-        print("❌ Ошибка в /api/votes:", repr(e))
+        print("❌ Критическая ошибка в /api/votes:", repr(e))
         raise HTTPException(status_code=500, detail="Ошибка сервера. Попробуйте позже.")
+
 
 @app.get("/api/employees")
 async def get_employees(department: str = None):
-    """
-    Возвращает список ФИО для выбора номинанта — из ОБЩЕЙ базы.
-    """
     if department:
-        filtered = [
-            fio for fio, dept in ALL_EMPLOYEES.items()
-            if dept.lower() == department.lower()
-        ]
+        filtered = [fio for fio, dept in ALL_EMPLOYEES.items() if dept.lower() == department.lower()]
     else:
         filtered = list(ALL_EMPLOYEES.keys())
     return {"employees": filtered}
@@ -195,15 +196,12 @@ async def get_employees(department: str = None):
 async def get_departments():
     return {"departments": LOCAL_DEPARTMENTS}
 
+
 @dp.message_handler(commands=["start"])
 async def start(message: types.Message):
     user_first_name = message.from_user.first_name or "друг"
-    inline_markup = InlineKeyboardMarkup()
-    inline_markup.add(
-        InlineKeyboardButton(
-            text="🗳 Проголосовать",
-            web_app=WebAppInfo(url="https://www.prosoft-people.ru")
-        )
+    inline_markup = InlineKeyboardMarkup().add(
+        InlineKeyboardButton("🗳 Проголосовать", web_app=WebAppInfo(url="https://www.prosoft-people.ru"))
     )
     await message.answer(
         f"<b>Привет, {user_first_name}!</b>\n\n"
@@ -221,9 +219,11 @@ async def serve_webapp():
         return f.read()
 
 
+# === Запуск ===
 if __name__ == "__main__":
     import logging
     import uvicorn
+    import tempfile  # ← не забываем импортировать!
 
     logging.basicConfig(level=logging.INFO)
 
