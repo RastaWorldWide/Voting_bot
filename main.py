@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from dotenv import load_dotenv
-import pandas as pd
+import pdas as pd
 from fastapi.responses import HTMLResponse
 
 
